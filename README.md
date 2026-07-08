@@ -5,15 +5,15 @@
 
 A chat-first operating system for the household — clone, drop in your keys for WhatsApp / LLM / voice / vision, rebrand, and ship. Built so you can stand up a "house manager" product for your city in a weekend, not a year.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FAbhiK24%2Ffamily-os&project-name=family-os&repository-name=family-os&stores=%5B%7B%22type%22%3A%22postgres%22%7D%5D&env=LLM_API_KEY%2CLLM_BASE_URL%2CLLM_MODEL%2CBRAND_NAME%2CBRAND_TAGLINE&envDescription=See%20.env.example%20for%20the%20full%20list&envLink=https%3A%2F%2Fgithub.com%2FAbhiK24%2Ffamily-os%2Fblob%2Fmain%2Fapps%2Fweb%2F.env.example)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Frutveez-build%2FHome-OS-&project-name=family-os&repository-name=family-os&stores=%5B%7B%22type%22%3A%22postgres%22%7D%5D&env=LLM_API_KEY%2CLLM_BASE_URL%2CLLM_MODEL%2CSESSION_SECRET%2CBRAND_NAME%2CBRAND_TAGLINE&envDescription=See%20.env.example%20for%20the%20full%20list&envLink=https%3A%2F%2Fgithub.com%2Frutveez-build%2FHome-OS-%2Fblob%2Fmain%2Fapps%2Fweb%2F.env.example)
 
 The Vercel button provisions a Postgres database, prompts you for the minimum keys (LLM key + base URL + model + brand text), and runs migrations on first build. You're live in ~3 minutes.
 
 Prefer the local-dev path:
 
 ```
-git clone https://github.com/AbhiK24/family-os
-cd family-os
+git clone https://github.com/rutveez-build/Home-OS-
+cd Home-OS-
 cp apps/web/.env.example apps/web/.env.local   # add your keys
 pnpm install
 pnpm db:migrate
@@ -28,6 +28,7 @@ pnpm dev   # http://localhost:3000
 |---|---|---|
 | **Chat (web)** | ✅ Working | Streaming Next.js app, mobile-first, onboarding, dark mode |
 | **Persistent memory** | ✅ Working | Postgres + Drizzle. Auto-extracts 0–3 durable facts per exchange |
+| **Kitchen loop** | ✅ Working | Weekly meal plan → your approval → cook message (in the cook's language) → shopping list |
 | **WhatsApp chat** | 🟡 Scaffolded | Webhook + send for Meta Cloud API **and** Twilio. Slot in your keys |
 | **Family members** | 🟡 Scaffolded | Create families, invite via WhatsApp, roles. Slash-commands wired |
 | **Voice notes** | 🟡 Scaffolded | ASR abstraction with Sarvam (Indic) + OpenAI Whisper drivers |
@@ -57,12 +58,39 @@ One brain (`lib/chat-core.ts`), two transports (web + WhatsApp), one Postgres of
 
 ---
 
+## The kitchen loop (the core product)
+
+Approval-first, in any chat (web or WhatsApp):
+
+```
+/setup                          → checklist: what's configured, what's next
+/family create The Sharmas      → your household
+/household diets vegetarian     → hard constraints the planner obeys
+/household allergies peanuts    →   (allergies are never violated)
+/household meals ld             → plan dinner only (d), lunch+dinner (ld), or all (bld)
+/cook set Sunita +91... hi      → cook's name, WhatsApp, language, frequency
+/plan week                      → AI drafts the week — as a DRAFT
+/plan change TUE dinner Dosa    → edit any slot
+/plan approve                   → nothing happens without this
+/plan cook                      → drafts the cook's message in their language
+/plan cook send                 → sends it on WhatsApp — only after you say so
+/plan shopping                  → grocery list grouped for Blinkit/Zepto/Instamart
+```
+
+Every approval, send, and export lands in an append-only `audit_log`. The
+assistant never orders groceries, never messages staff unprompted, never acts
+without a human yes. Assistant-surface integration contract: `docs/assistant-tools.md`.
+
+
+---
+
 ## Bring your own keys
 
 Open [`apps/web/.env.example`](apps/web/.env.example) — every key has a one-line explanation. Leave anything blank and that capability degrades gracefully (you'll see a clear log line).
 
 **Minimum to run the demo:**
 - `DATABASE_URL` — any Postgres (Neon, Supabase, Railway, local docker)
+- `SESSION_SECRET` — `openssl rand -hex 32` (signs the session cookie)
 - `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` — any OpenAI-compatible API
 
 **Add WhatsApp** (recommended for India: Meta Cloud, direct):

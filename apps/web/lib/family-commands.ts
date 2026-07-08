@@ -44,6 +44,10 @@ export async function runCommandIfAny(args: {
   if (cmd === "yes") {
     return await handleYes({ userPhone: args.userPhone });
   }
+  if (cmd === "setup") {
+    const { runSetupCommand } = await import("./setup-command");
+    return runSetupCommand(args.userId);
+  }
   if (cmd === "plan" || cmd === "household" || cmd === "cook") {
     // Lazy import to avoid a require cycle (kitchen-commands imports our types).
     const { runKitchenCommand } = await import("./kitchen-commands");
