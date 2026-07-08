@@ -52,7 +52,7 @@ export async function runCommandIfAny(args: {
     const { runSetupCommand } = await import("./setup-command");
     return runSetupCommand(args.userId);
   }
-  if (cmd === "plan" || cmd === "household" || cmd === "cook") {
+  if (cmd === "plan" || cmd === "household" || cmd === "cook" || cmd === "feedback") {
     // Lazy import to avoid a require cycle (kitchen-commands imports our types).
     const { runKitchenCommand } = await import("./kitchen-commands");
     return runKitchenCommand({

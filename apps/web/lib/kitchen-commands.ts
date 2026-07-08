@@ -24,6 +24,7 @@ import { logAudit } from "./audit";
 import { generateWeeklyPlan, formatPlan, DAY_NAMES } from "./kitchen/planner";
 import { draftCookMessage } from "./kitchen/cook-message";
 import { buildShoppingList } from "./kitchen/shopping";
+import { recordMealFeedback } from "./kitchen/feedback";
 import { getProvider } from "./whatsapp";
 import type { CommandResult } from "./family-commands";
 
@@ -55,6 +56,7 @@ export async function runKitchenCommand(args: {
   const role = fams[0].member.role;
   const ctx: Ctx = { userId: args.userId, role, channel: args.channel, sub: args.sub ?? "", tail: args.tail };
 
+  if (args.cmd === "feedback") return handleFeedback(familyId, ctx);
   if (args.cmd === "plan") return handlePlan(familyId, ctx);
   if (args.cmd === "household") return handleHousehold(familyId, ctx);
   if (args.cmd === "cook") return handleCook(familyId, ctx);
@@ -212,6 +214,32 @@ async function handlePlan(familyId: string, ctx: Ctx): Promise<CommandResult> {
     handled: true,
     reply: "Try `/plan week`, `/plan show`, `/plan approve`, `/plan change TUE dinner X`, `/plan cook`, `/plan shopping`.",
   };
+}
+
+/* ─────────── /feedback ─────────── */
+// /feedback dinner cooked liked [none|some|lots leftovers] [note...]
+// /feedback lunch skipped
+async function handleFeedback(familyId: string, ctx: Ctx): Promise<CommandResult> {
+  const m = `${ctx.sub} ${ctx.tail}`.trim().match(
+    /^(breakfast|lunch|dinner)\s+(cooked|skipped)(?:\s+(liked|ok|disliked))?(?:\s+(none|some|lots))?\s*(.*)$/i
+  );
+  if (!m) {
+    return {
+      handled: true,
+      reply:
+        "Tell me how it went:\n`/feedback dinner cooked liked` · `/feedback dinner cooked ok some` (leftovers) · `/feedback lunch skipped`\nFormat: meal, cooked|skipped, liked|ok|disliked, leftovers none|some|lots, note.",
+    };
+  }
+  const res = await recordMealFeedback({
+    familyId,
+    userId: ctx.userId,
+    meal: m[1].toLowerCase() as MealSlot,
+    cooked: m[2].toLowerCase() as "cooked" | "skipped",
+    verdict: m[3]?.toLowerCase() as "liked" | "ok" | "disliked" | undefined,
+    leftovers: m[4]?.toLowerCase() as "none" | "some" | "lots" | undefined,
+    note: m[5]?.trim() || undefined,
+  });
+  return { handled: true, reply: res.reply };
 }
 
 /* ─────────── /household ─────────── */

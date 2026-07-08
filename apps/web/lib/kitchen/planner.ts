@@ -4,6 +4,7 @@
 
 import { llm, LLM_MODEL_FAST } from "../llm";
 import { logAudit } from "../audit";
+import { feedbackDigest } from "./feedback";
 import {
   createDraftPlan,
   getCook,
@@ -42,6 +43,8 @@ export async function generateWeeklyPlan(args: {
   const prev = await latestPlan(args.familyId);
   const prevDishes = prev ? (await planEntries(prev.id)).map((e) => e.dish) : [];
 
+  const feedback = await feedbackDigest(args.familyId);
+
   // Cook's working days: skip days the cook is off (0=Sun in workingDays).
   const workingDays = cook?.workingDays ?? [1, 2, 3, 4, 5, 6];
 
@@ -56,6 +59,7 @@ PREFERENCES:
 - Favourite cuisines (rotate them): ${profile?.cuisines?.join(", ") || "Indian home food"}
 - Budget: ${profile?.budgetBand || "moderate"}
 - Do NOT repeat these recent dishes: ${prevDishes.join(", ") || "none"}
+${feedback ? `\nFAMILY FEEDBACK on recent meals (learn from this — drop disliked dishes, shrink portions where leftovers were heavy, repeat what was liked):\n${feedback}` : ""}
 
 MEALS per day: ${slots.join(", ")}.
 ONLY these days (cook's working days, 0=Sun..6=Sat): ${workingDays.join(",")}.

@@ -22,6 +22,13 @@
       "when": 1783529485472,
       "tag": "0002_stormy_jamie_braddock",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783530053746,
+      "tag": "0003_faithful_silk_fever",
+      "breakpoints": true
     }
   ]
 }

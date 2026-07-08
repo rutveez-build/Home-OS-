@@ -277,6 +277,29 @@ export const shoppingLists = pgTable("shopping_lists", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/* ─────────── kitchen: meal feedback (the retention flywheel) ─────────── */
+// One row per meal outcome. The planner reads recent rows so next week's
+// plan visibly learns: disliked dishes drop, leftover-heavy dishes shrink.
+export const mealFeedback = pgTable(
+  "meal_feedback",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    planId: uuid("plan_id").references(() => mealPlans.id, { onDelete: "set null" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    dish: text("dish").notNull(),
+    meal: text("meal").$type<MealSlot>().notNull(),
+    cooked: text("cooked").notNull(), // 'cooked' | 'skipped'
+    verdict: text("verdict"), // 'liked' | 'ok' | 'disliked'
+    leftovers: text("leftovers"), // 'none' | 'some' | 'lots'
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({ familyIdx: index("meal_feedback_family_idx").on(t.familyId) })
+);
+
 /* ─────────── consents (DPDP ledger) ─────────── */
 // One row per member × data category. Withdrawal is a timestamp, not a
 // delete — the Act requires provable notice/consent history.
@@ -326,3 +349,4 @@ export type Approval = typeof approvals.$inferSelect;
 export type AuditEntry = typeof auditLog.$inferSelect;
 export type ShoppingList = typeof shoppingLists.$inferSelect;
 export type Consent = typeof consents.$inferSelect;
+export type MealFeedback = typeof mealFeedback.$inferSelect;
