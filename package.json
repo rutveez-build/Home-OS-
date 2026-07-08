@@ -1,0 +1,17 @@
+{
+  "name": "family-os",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Open-source scaffold to launch a family-OS startup. WhatsApp chat, family members, persistent memory — bring your own keys.",
+  "scripts": {
+    "dev": "pnpm --filter @family-os/web dev",
+    "build": "pnpm --filter @family-os/web build",
+    "start": "pnpm --filter @family-os/web start",
+    "db:generate": "pnpm --filter @family-os/web db:generate",
+    "db:migrate": "pnpm --filter @family-os/web db:migrate"
+  },
+  "packageManager": "pnpm@10.29.3",
+  "engines": {
+    "node": ">=20"
+  }
+}

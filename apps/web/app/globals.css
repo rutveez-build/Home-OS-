@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Brand colour via CSS variables — override in your fork. */
+:root {
+  --brand: 35 76 63;       /* #234C3F deep forest */
+  --brand-soft: 45 99 84;  /* #2D6354 */
+  --brand-deep: 27 58 54;  /* #1B3A36 */
+}
+
+html, body {
+  background: #F5F1EA;
+  color: #15171A;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+@media (prefers-color-scheme: dark) {
+  html, body { background: #0F1114; color: #ECEEF1; }
+}
+textarea, input, button { -webkit-tap-highlight-color: transparent; }
+textarea, input { caret-color: rgb(var(--brand)); }
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(21, 23, 26, 0.12);
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgba(21, 23, 26, 0.22); }
+@media (prefers-color-scheme: dark) {
+  *::-webkit-scrollbar-thumb { background: rgba(236, 238, 241, 0.12); }
+}

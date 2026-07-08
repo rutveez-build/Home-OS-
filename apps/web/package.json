@@ -1,0 +1,35 @@
+{
+  "name": "@family-os/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "vercel-build": "tsx db/migrate.ts && next build",
+    "start": "next start -p ${PORT:-3000}",
+    "lint": "next lint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx db/migrate.ts",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "next": "^15.1.11",
+    "openai": "^4.83.0",
+    "postgres": "^3.4.9",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "@types/react": "19.0.7",
+    "@types/react-dom": "19.0.3",
+    "autoprefixer": "^10.4.20",
+    "dotenv": "^17.4.2",
+    "drizzle-kit": "^0.31.10",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.22.4",
+    "typescript": "^5.7.3"
+  }
+}

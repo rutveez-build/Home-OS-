@@ -1,0 +1,21 @@
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+coverage/
+*.log
+*.tsbuildinfo
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
