@@ -86,7 +86,7 @@ async function handlePlan(familyId: string, ctx: Ctx): Promise<CommandResult> {
     if (plan.status === "approved") return { handled: true, reply: "This plan is already approved." };
     const approved = await approvePlan(plan.id, ctx.userId);
     if (!approved) return { handled: true, reply: "Couldn't approve — was it already handled?" };
-    await resolveApproval({
+    const resolved = await resolveApproval({
       familyId,
       subjectType: "meal_plan",
       subjectId: plan.id,
@@ -94,6 +94,19 @@ async function handlePlan(familyId: string, ctx: Ctx): Promise<CommandResult> {
       decision: "approved",
       channel: ctx.channel,
     });
+    if (!resolved) {
+      // No pending approval row (e.g. plan seeded outside /plan week) —
+      // the ledger must still record the approval.
+      await logAudit({
+        familyId,
+        actorUserId: ctx.userId,
+        actor: "user",
+        action: "meal_plan.approved",
+        subjectType: "meal_plan",
+        subjectId: plan.id,
+        channel: ctx.channel,
+      });
+    }
     return {
       handled: true,
       reply:

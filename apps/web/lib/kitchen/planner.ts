@@ -107,10 +107,15 @@ Simple, realistic home dishes a household cook can make. No dish name twice.`;
   return { plan, text: formatPlan(plan.weekStart, entries) };
 }
 
+const MEAL_ORDER: Record<string, number> = { breakfast: 0, lunch: 1, dinner: 2 };
+
 export function formatPlan(
   weekStart: string,
   entries: Array<{ day: number; meal: string; dish: string; notes?: string | null }>
 ): string {
+  entries = [...entries].sort(
+    (a, b) => a.day - b.day || (MEAL_ORDER[a.meal] ?? 9) - (MEAL_ORDER[b.meal] ?? 9)
+  );
   const byDay = new Map<number, string[]>();
   for (const e of entries) {
     const line = `  ${cap(e.meal)}: ${e.dish}${e.notes ? ` (${e.notes})` : ""}`;
