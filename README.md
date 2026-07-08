@@ -1,6 +1,6 @@
-# Family OS
+# Home OS
 
-> Open-source scaffold to launch your own family-OS startup.
+> Open-source household concierge — meal planning, cook coordination, shopping lists.
 > WhatsApp-ready, family-member-aware, persistent memory. **Bring your own keys.**
 
 A chat-first operating system for the household — clone, drop in your keys for WhatsApp / LLM / voice / vision, rebrand, and ship. Built so you can stand up a "house manager" product for your city in a weekend, not a year.

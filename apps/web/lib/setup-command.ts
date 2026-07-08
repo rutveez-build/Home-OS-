@@ -4,6 +4,7 @@
 
 import { familiesForUser } from "@/db/repo";
 import { getCook, getProfile } from "@/db/kitchen-repo";
+import { brand } from "./brand";
 import type { CommandResult } from "./family-commands";
 
 const check = (ok: boolean) => (ok ? "✅" : "⬜");
@@ -42,6 +43,6 @@ export async function runSetupCommand(userId: string): Promise<CommandResult> {
 
   return {
     handled: true,
-    reply: `Family OS setup · ${done}/${steps.length} done\n\n${lines.join("\n")}\n\n${next}`,
+    reply: `${brand.name} setup · ${done}/${steps.length} done\n\n${lines.join("\n")}\n\n${next}`,
   };
 }

@@ -1,4 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile=false",
+  "buildCommand": "pnpm vercel-build",
+  "outputDirectory": ".next",
   "crons": [{ "path": "/api/cron/retention", "schedule": "0 3 * * *" }]
 }

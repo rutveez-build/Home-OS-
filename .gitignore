@@ -23,4 +23,4 @@ coverage/
 .vercel/
 .agents/
 skills-lock.json
-.env*
+next-env.d.ts

@@ -11,71 +11,47 @@ export default function Landing() {
             <Logo size={17} />
           </span>
           <span className="text-[14px] font-semibold tracking-tight">{brand.name}</span>
-          <span className="ml-1 rounded-full bg-brand/10 px-2 py-0.5 text-[10.5px] font-medium uppercase tracking-wider text-brand dark:bg-white/10 dark:text-white/80">
-            Open source · MIT
-          </span>
         </div>
       </div>
 
       <section className="px-5 pb-7 pt-9">
         <div className="mx-auto max-w-md">
           <h1 className="text-[36px] font-semibold leading-[1.05] tracking-tight">
-            Launch a
+            Never wonder
             <br />
-            <span className="text-brand dark:text-brand-soft">family-OS</span>
+            <span className="text-brand dark:text-brand-soft">what&apos;s for dinner</span>
             <br />
-            startup in a weekend.
+            again.
           </h1>
           <p className="mt-5 text-[17px] leading-relaxed text-ink/75 dark:text-white/75">
-            Open-source scaffold. Bring your own keys. WhatsApp-ready, family-member-aware, persistent memory, runs on any OpenAI-compatible LLM.
+            {brand.name} plans your week, checks it with you, and writes out the cook&apos;s
+            instructions and the shopping list — in plain chat. You approve everything before
+            it goes anywhere.
           </p>
           <Link
             href="/chat"
             className="mt-7 block w-full rounded-2xl bg-brand py-4 text-center text-[17px] font-semibold text-white shadow-sm transition active:bg-brand-deep active:scale-[0.99]"
           >
-            Try the demo →
+            Try it now →
           </Link>
-          <a
-            href="https://github.com/AbhiK24/family-os"
-            className="mt-3 block w-full rounded-2xl border border-line py-4 text-center text-[15px] font-medium text-ink/75 dark:border-line-dark dark:text-white/75"
-          >
-            View on GitHub →
-          </a>
+          <p className="mt-3 text-center text-[13px] text-ink/50 dark:text-white/45">
+            Free to try. Takes under a minute to set up.
+          </p>
         </div>
       </section>
 
       <section className="px-5">
         <div className="mx-auto max-w-md space-y-2.5">
-          <Card heading="Bring your own keys" body="The scaffold ships with placeholders for everything. Drop in your Meta / Twilio / Sarvam / OpenAI / Moonshot keys and the corresponding feature comes alive. No vendor lock-in." />
-          <Card heading="WhatsApp ready" body="One inbound webhook, two providers (Meta Cloud + Twilio), voice-note transcription, family slash-commands. Replace the brand and ship in your city." />
-          <Card heading="Family members" body="A user can be in one or more families, with roles (owner, parent, partner, child, elder, helper). Invitations land on WhatsApp; reply YES to join. Each member's chat stays private." />
-          <Card heading="Memory that grows" body="Postgres + Drizzle. Every exchange extracts 0–3 durable facts and writes them back. Next time they message, the assistant knows them. Embeddings come later — recency works first." />
-        </div>
-      </section>
-
-      <section className="mt-10 px-5">
-        <div className="mx-auto max-w-md">
-          <h2 className="text-[12px] font-semibold uppercase tracking-wider text-ink/55 dark:text-white/55">
-            Get started
-          </h2>
-          <pre className="mt-3 overflow-x-auto rounded-2xl bg-surface p-4 text-[12.5px] leading-relaxed text-ink/80 shadow-bubble dark:bg-surface-dark dark:text-white/80">
-{`git clone https://github.com/AbhiK24/family-os
-cd family-os
-cp apps/web/.env.example apps/web/.env.local
-# fill in your keys
-pnpm install
-pnpm db:migrate
-pnpm dev`}
-          </pre>
-          <p className="mt-3 text-[13px] leading-relaxed text-ink/60 dark:text-white/60">
-            Default port: 3000. Database: any Postgres (Neon / Supabase / Railway / local docker). LLM: any OpenAI-compatible endpoint.
-          </p>
+          <Card heading="Tell it about your household" body="Diets, allergies, favourite cuisines, budget, who's cooking and how often. Say it in plain words — no forms." />
+          <Card heading="A weekly plan you approve" body="It drafts the week's meals around what you told it. You review, tweak any day, then approve — nothing happens before that." />
+          <Card heading="Ready to forward on WhatsApp" body="Once approved, it writes the cook's message in their language and a shopping list grouped for Blinkit / Zepto / Instamart. Copy, paste, send — from your own WhatsApp." />
+          <Card heading="Gets better each week" body="Tell it what was cooked, skipped, or had leftovers. Next week's plan quietly adjusts." />
         </div>
       </section>
 
       <section className="mt-12 px-5 pb-[max(env(safe-area-inset-bottom),2.5rem)]">
         <p className="mx-auto max-w-md text-center text-[11.5px] text-ink/35 dark:text-white/30">
-          MIT licensed. Build something kind.
+          Open source, MIT licensed.
         </p>
       </section>
     </div>

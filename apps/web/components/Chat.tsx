@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Logo } from "./Logo";
 import { Onboarding } from "./Onboarding";
 import { clearProfile, loadProfile, newDeviceId, saveProfile, type Profile } from "@/lib/storage";
+import { brand } from "@/lib/brand";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -120,7 +121,7 @@ function ChatRoom({ profile, onResetProfile }: { profile: Profile; onResetProfil
         </button>
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="text-brand dark:text-white/90"><Logo size={18} /></span>
-          <span className="text-[15px] font-semibold tracking-tight">Family assistant</span>
+          <span className="text-[15px] font-semibold tracking-tight">{brand.name}</span>
         </div>
       </header>
 

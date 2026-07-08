@@ -19,6 +19,7 @@ import {
   pendingInvitationForPhone,
 } from "@/db/repo";
 import { FAMILY_ROLES, type FamilyRole } from "@/db/schema";
+import { brand } from "./brand";
 import { getProvider } from "./whatsapp";
 
 export type CommandResult = {
@@ -138,7 +139,7 @@ async function handleFamily(args: {
     const wa = getProvider();
     await wa.sendText(
       phone,
-      `Hi ${name} — you've been invited to join "${family.name}" on the family assistant. Reply YES to join.`
+      `Hi ${name} — you've been invited to join "${family.name}" on ${brand.name}. Reply YES to join.`
     );
     return {
       handled: true,
