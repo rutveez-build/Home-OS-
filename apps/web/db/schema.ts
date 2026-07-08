@@ -17,6 +17,7 @@ import {
   timestamp,
   jsonb,
   index,
+  integer,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
@@ -150,6 +151,132 @@ export const memories = pgTable(
   (t) => ({ userIdx: index("memories_user_id_idx").on(t.userId) })
 );
 
+/* ─────────── kitchen: household profile (structured memory) ─────────── */
+// Hard constraints for meal planning. Soft chat-extracted facts stay in
+// `memories`; these fields are the source of truth the planner obeys.
+export type MealScope = "d" | "ld" | "bld"; // dinner | lunch+dinner | all three
+export const householdProfiles = pgTable("household_profiles", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  familyId: uuid("family_id")
+    .notNull()
+    .unique()
+    .references(() => families.id, { onDelete: "cascade" }),
+  diets: jsonb("diets").$type<string[]>().default([]).notNull(), // e.g. ["vegetarian", "veg-only tuesdays"]
+  allergies: jsonb("allergies").$type<string[]>().default([]).notNull(), // hard constraints, never violated
+  dislikes: jsonb("dislikes").$type<string[]>().default([]).notNull(),
+  cuisines: jsonb("cuisines").$type<string[]>().default([]).notNull(),
+  budgetBand: text("budget_band"),
+  mealScope: text("meal_scope").$type<MealScope>().notNull().default("ld"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/* ─────────── kitchen: staff (cook/helper) ─────────── */
+export const staff = pgTable("staff", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  familyId: uuid("family_id")
+    .notNull()
+    .references(() => families.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  phone: text("phone"), // E.164; optional until WhatsApp coordination is on
+  language: text("language").notNull().default("hi"),
+  frequency: text("frequency").notNull().default("once_daily"),
+  // 'occasionally' | 'once_daily' | 'twice_daily' | 'thrice_daily' | 'live_in'
+  workingDays: jsonb("working_days").$type<number[]>().default([1, 2, 3, 4, 5, 6]).notNull(), // 0=Sun
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/* ─────────── kitchen: meal plans ─────────── */
+export type PlanStatus = "draft" | "approved" | "discarded";
+export const mealPlans = pgTable(
+  "meal_plans",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    weekStart: text("week_start").notNull(), // ISO date (YYYY-MM-DD), Monday
+    status: text("status").$type<PlanStatus>().notNull().default("draft"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    approvedByUserId: uuid("approved_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+  },
+  (t) => ({ familyIdx: index("meal_plans_family_idx").on(t.familyId) })
+);
+
+export type MealSlot = "breakfast" | "lunch" | "dinner";
+export const mealPlanEntries = pgTable(
+  "meal_plan_entries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => mealPlans.id, { onDelete: "cascade" }),
+    day: integer("day").notNull(), // 0=Mon … 6=Sun within the plan week
+    meal: text("meal").$type<MealSlot>().notNull(),
+    dish: text("dish").notNull(),
+    notes: text("notes"), // "veg-only tuesday", "uses leftover batter", …
+  },
+  (t) => ({
+    planIdx: index("meal_plan_entries_plan_idx").on(t.planId),
+    uniq: uniqueIndex("meal_plan_entries_slot_unique").on(t.planId, t.day, t.meal),
+  })
+);
+
+/* ─────────── approvals (reused by every skill) ─────────── */
+export type ApprovalStatus = "pending" | "approved" | "declined" | "expired";
+export const approvals = pgTable(
+  "approvals",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    subjectType: text("subject_type").notNull(), // 'meal_plan' | 'cook_message' | 'shopping_list' | …
+    subjectId: text("subject_id").notNull(),
+    requestedByUserId: uuid("requested_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    resolvedByUserId: uuid("resolved_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    status: text("status").$type<ApprovalStatus>().notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (t) => ({ familyIdx: index("approvals_family_idx").on(t.familyId) })
+);
+
+/* ─────────── audit log (append-only trust ledger) ─────────── */
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    familyId: uuid("family_id").references(() => families.id, { onDelete: "cascade" }),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    actor: text("actor").notNull(), // 'user' | 'system'
+    action: text("action").notNull(), // 'plan.approved', 'cook_message.sent', 'list.exported', …
+    subjectType: text("subject_type"),
+    subjectId: text("subject_id"),
+    channel: text("channel"), // 'web' | 'whatsapp' | 'system'
+    detail: jsonb("detail").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({ familyIdx: index("audit_log_family_idx").on(t.familyId) })
+);
+
+/* ─────────── kitchen: shopping lists ─────────── */
+export type ShoppingItem = { name: string; qty: string; category: string; substitute?: string };
+export const shoppingLists = pgTable("shopping_lists", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  planId: uuid("plan_id")
+    .notNull()
+    .references(() => mealPlans.id, { onDelete: "cascade" }),
+  familyId: uuid("family_id")
+    .notNull()
+    .references(() => families.id, { onDelete: "cascade" }),
+  // ponytail: items as jsonb, not rows — lists are read/exported whole;
+  // promote to a table when per-item state (bought/substituted) arrives.
+  items: jsonb("items").$type<ShoppingItem[]>().default([]).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 /* ─────────── types ─────────── */
 export type Family = typeof families.$inferSelect;
 export type User = typeof users.$inferSelect;
@@ -158,3 +285,10 @@ export type FamilyInvitation = typeof familyInvitations.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Memory = typeof memories.$inferSelect;
+export type HouseholdProfile = typeof householdProfiles.$inferSelect;
+export type Staff = typeof staff.$inferSelect;
+export type MealPlan = typeof mealPlans.$inferSelect;
+export type MealPlanEntry = typeof mealPlanEntries.$inferSelect;
+export type Approval = typeof approvals.$inferSelect;
+export type AuditEntry = typeof auditLog.$inferSelect;
+export type ShoppingList = typeof shoppingLists.$inferSelect;

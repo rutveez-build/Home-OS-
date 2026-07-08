@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { runChatTurn } from "@/lib/chat-core";
+import { runCommandIfAny } from "@/lib/family-commands";
 import { sessionUserId } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -42,6 +43,20 @@ export async function POST(req: NextRequest) {
   const last = messages[messages.length - 1];
   if (last.role !== "user") {
     return new Response("Expected last message to be user", { status: 400 });
+  }
+
+  // Slash commands (/plan, /household, /cook, /family) short-circuit the LLM —
+  // same deterministic loop on web as on WhatsApp.
+  const cmd = await runCommandIfAny({
+    userId: user.id,
+    userPhone: user.phone ?? undefined,
+    text: last.content,
+    channel: "web",
+  });
+  if (cmd.handled && cmd.reply) {
+    return new Response(cmd.reply, {
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-cache" },
+    });
   }
 
   const encoder = new TextEncoder();

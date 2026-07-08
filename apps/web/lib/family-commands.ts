@@ -30,6 +30,7 @@ export async function runCommandIfAny(args: {
   userId: string;
   userPhone?: string;
   text: string;
+  channel?: "web" | "whatsapp";
 }): Promise<CommandResult> {
   const t = args.text.trim();
   if (!t.startsWith("/")) return { handled: false };
@@ -42,6 +43,17 @@ export async function runCommandIfAny(args: {
   }
   if (cmd === "yes") {
     return await handleYes({ userPhone: args.userPhone });
+  }
+  if (cmd === "plan" || cmd === "household" || cmd === "cook") {
+    // Lazy import to avoid a require cycle (kitchen-commands imports our types).
+    const { runKitchenCommand } = await import("./kitchen-commands");
+    return runKitchenCommand({
+      userId: args.userId,
+      channel: args.channel ?? "whatsapp",
+      cmd,
+      sub,
+      tail,
+    });
   }
   return { handled: false };
 }
