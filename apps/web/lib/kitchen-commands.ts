@@ -18,6 +18,8 @@ import {
 } from "@/db/kitchen-repo";
 import type { MealScope, MealSlot } from "@/db/schema";
 import { requestApproval, resolveApproval } from "./approvals";
+import { can, deniedReply } from "./permissions";
+import { hasActiveConsent, recordConsent } from "./consent";
 import { logAudit } from "./audit";
 import { generateWeeklyPlan, formatPlan, DAY_NAMES } from "./kitchen/planner";
 import { draftCookMessage } from "./kitchen/cook-message";
@@ -25,8 +27,11 @@ import { buildShoppingList } from "./kitchen/shopping";
 import { getProvider } from "./whatsapp";
 import type { CommandResult } from "./family-commands";
 
+import type { FamilyRole } from "@/db/schema";
+
 type Ctx = {
   userId: string;
+  role: FamilyRole;
   channel: "web" | "whatsapp";
   sub: string;
   tail: string;
@@ -47,7 +52,8 @@ export async function runKitchenCommand(args: {
     };
   }
   const familyId = fams[0].family.id;
-  const ctx: Ctx = { userId: args.userId, channel: args.channel, sub: args.sub ?? "", tail: args.tail };
+  const role = fams[0].member.role;
+  const ctx: Ctx = { userId: args.userId, role, channel: args.channel, sub: args.sub ?? "", tail: args.tail };
 
   if (args.cmd === "plan") return handlePlan(familyId, ctx);
   if (args.cmd === "household") return handleHousehold(familyId, ctx);
@@ -59,6 +65,7 @@ export async function runKitchenCommand(args: {
 
 async function handlePlan(familyId: string, ctx: Ctx): Promise<CommandResult> {
   if (ctx.sub === "week") {
+    if (!can(ctx.role, "edit_plan")) return { handled: true, reply: deniedReply("edit_plan") };
     const res = await generateWeeklyPlan({ familyId, userId: ctx.userId });
     if ("error" in res) return { handled: true, reply: res.error };
     await requestApproval({
@@ -81,6 +88,7 @@ async function handlePlan(familyId: string, ctx: Ctx): Promise<CommandResult> {
   }
 
   if (ctx.sub === "approve") {
+    if (!can(ctx.role, "approve")) return { handled: true, reply: deniedReply("approve") };
     const plan = await latestPlan(familyId);
     if (!plan) return { handled: true, reply: "Nothing to approve — `/plan week` first." };
     if (plan.status === "approved") return { handled: true, reply: "This plan is already approved." };
@@ -115,6 +123,7 @@ async function handlePlan(familyId: string, ctx: Ctx): Promise<CommandResult> {
   }
 
   if (ctx.sub === "change") {
+    if (!can(ctx.role, "edit_plan")) return { handled: true, reply: deniedReply("edit_plan") };
     // /plan change tue dinner Veg Biryani
     const m = ctx.tail.match(/^(\w{3})\s+(breakfast|lunch|dinner)\s+(.{2,})$/i);
     if (!m) return { handled: true, reply: "Usage: `/plan change TUE dinner Veg Biryani`" };
@@ -144,6 +153,13 @@ async function handlePlan(familyId: string, ctx: Ctx): Promise<CommandResult> {
 
   if (ctx.sub === "cook") {
     const send = ctx.tail.trim().toLowerCase() === "send";
+    if (send && !can(ctx.role, "approve")) return { handled: true, reply: deniedReply("approve") };
+    if (send && !(await hasActiveConsent(familyId, ctx.userId, "staff_messaging"))) {
+      return {
+        handled: true,
+        reply: "Staff messaging consent is withdrawn or missing. Re-enable with `/privacy grant staff_messaging`.",
+      };
+    }
     const draft = await draftCookMessage(familyId);
     if ("error" in draft) return { handled: true, reply: draft.error };
 
@@ -226,19 +242,26 @@ async function handleHousehold(familyId: string, ctx: Ctx): Promise<CommandResul
   }
 
   if ((LIST_FIELDS as readonly string[]).includes(ctx.sub)) {
+    if (!can(ctx.role, "manage_household")) return { handled: true, reply: deniedReply("manage_household") };
     const values = ctx.tail.split(",").map((s) => s.trim()).filter(Boolean);
     if (!values.length) return { handled: true, reply: `Usage: \`/household ${ctx.sub} a, b, c\`` };
     await upsertProfile(familyId, { [ctx.sub]: values });
+    await recordConsent({ familyId, userId: ctx.userId, category: "household_data", purpose: "meal planning" });
+    if (ctx.sub === "allergies") {
+      await recordConsent({ familyId, userId: ctx.userId, category: "health_data", purpose: "allergy-safe meal planning" });
+    }
     return { handled: true, reply: `${cap(ctx.sub)} saved: ${values.join(", ")} ✓` };
   }
 
   if (ctx.sub === "budget") {
+    if (!can(ctx.role, "manage_household")) return { handled: true, reply: deniedReply("manage_household") };
     if (!ctx.tail) return { handled: true, reply: "Usage: `/household budget ₹3500-5000/week`" };
     await upsertProfile(familyId, { budgetBand: ctx.tail });
     return { handled: true, reply: `Budget saved: ${ctx.tail} ✓` };
   }
 
   if (ctx.sub === "meals") {
+    if (!can(ctx.role, "manage_household")) return { handled: true, reply: deniedReply("manage_household") };
     const scope = ctx.tail.trim().toLowerCase();
     if (!["d", "ld", "bld"].includes(scope)) {
       return { handled: true, reply: "Usage: `/household meals d|ld|bld` (dinner / lunch+dinner / all three)" };
@@ -254,6 +277,7 @@ async function handleHousehold(familyId: string, ctx: Ctx): Promise<CommandResul
 
 async function handleCook(familyId: string, ctx: Ctx): Promise<CommandResult> {
   if (ctx.sub === "set") {
+    if (!can(ctx.role, "manage_household")) return { handled: true, reply: deniedReply("manage_household") };
     // /cook set Sunita didi +919845012345 hi once_daily
     const m = ctx.tail.match(/^(.+?)(?:\s+(\+\d{8,15}))?(?:\s+(en|hi|kn|mr|ta|te|bn))?(?:\s+(occasionally|once_daily|twice_daily|thrice_daily|live_in))?$/i);
     if (!m || !m[1]?.trim()) {
@@ -266,6 +290,7 @@ async function handleCook(familyId: string, ctx: Ctx): Promise<CommandResult> {
       language: m[3]?.toLowerCase(),
       frequency: m[4]?.toLowerCase(),
     });
+    await recordConsent({ familyId, userId: ctx.userId, category: "staff_messaging", purpose: "cook coordination on WhatsApp" });
     return {
       handled: true,
       reply: `Cook saved: ${s.name}${s.phone ? ` · ${s.phone}` : ""} · ${s.language} · ${s.frequency} ✓`,

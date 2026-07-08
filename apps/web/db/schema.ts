@@ -277,6 +277,39 @@ export const shoppingLists = pgTable("shopping_lists", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/* ─────────── consents (DPDP ledger) ─────────── */
+// One row per member × data category. Withdrawal is a timestamp, not a
+// delete — the Act requires provable notice/consent history.
+export const CONSENT_CATEGORIES = [
+  "household_data", // profile, preferences, plans
+  "health_data", // allergies, dietary-medical hints
+  "staff_messaging", // sending WhatsApp messages to cook/helpers
+  "child_data", // members flagged as children
+] as const;
+export type ConsentCategory = (typeof CONSENT_CATEGORIES)[number];
+
+export const consents = pgTable(
+  "consents",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    category: text("category").$type<ConsentCategory>().notNull(),
+    purpose: text("purpose").notNull(),
+    noticeVersion: text("notice_version").notNull().default("v1"),
+    grantedAt: timestamp("granted_at", { withTimezone: true }).defaultNow().notNull(),
+    withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
+  },
+  (t) => ({
+    familyIdx: index("consents_family_idx").on(t.familyId),
+    uniq: uniqueIndex("consents_member_category_unique").on(t.familyId, t.userId, t.category),
+  })
+);
+
 /* ─────────── types ─────────── */
 export type Family = typeof families.$inferSelect;
 export type User = typeof users.$inferSelect;
@@ -292,3 +325,4 @@ export type MealPlanEntry = typeof mealPlanEntries.$inferSelect;
 export type Approval = typeof approvals.$inferSelect;
 export type AuditEntry = typeof auditLog.$inferSelect;
 export type ShoppingList = typeof shoppingLists.$inferSelect;
+export type Consent = typeof consents.$inferSelect;

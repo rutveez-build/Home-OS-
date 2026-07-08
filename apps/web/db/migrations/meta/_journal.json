@@ -15,6 +15,13 @@
       "when": 1783520250950,
       "tag": "0001_broken_emma_frost",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783529485472,
+      "tag": "0002_stormy_jamie_braddock",
+      "breakpoints": true
     }
   ]
 }

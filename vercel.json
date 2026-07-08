@@ -3,5 +3,11 @@
   "framework": "nextjs",
   "installCommand": "pnpm install --frozen-lockfile=false",
   "buildCommand": "cd apps/web && pnpm vercel-build",
-  "outputDirectory": "apps/web/.next"
+  "outputDirectory": "apps/web/.next",
+  "crons": [
+    {
+      "path": "/api/cron/retention",
+      "schedule": "0 3 * * *"
+    }
+  ]
 }

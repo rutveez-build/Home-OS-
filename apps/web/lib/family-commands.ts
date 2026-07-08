@@ -44,6 +44,10 @@ export async function runCommandIfAny(args: {
   if (cmd === "yes") {
     return await handleYes({ userPhone: args.userPhone });
   }
+  if (cmd === "export" || cmd === "delete" || cmd === "privacy") {
+    const { runPrivacyCommand } = await import("./privacy-commands");
+    return runPrivacyCommand({ userId: args.userId, cmd, sub, tail });
+  }
   if (cmd === "setup") {
     const { runSetupCommand } = await import("./setup-command");
     return runSetupCommand(args.userId);
