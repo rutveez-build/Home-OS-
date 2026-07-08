@@ -20,3 +20,7 @@ coverage/
 *.swp
 *~
 .cursor/
+.vercel/
+.agents/
+skills-lock.json
+.env*
