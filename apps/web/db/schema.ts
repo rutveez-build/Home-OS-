@@ -20,6 +20,16 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+/* ─────────── closed vocabularies ─────────── */
+// ponytail: TS unions + runtime checks at the boundaries; upgrade to pg enums
+// when the schema stabilises (enum ALTERs are painful while roles are in flux).
+export const FAMILY_ROLES = ["owner", "parent", "partner", "child", "elder", "helper", "member"] as const;
+export type FamilyRole = (typeof FAMILY_ROLES)[number];
+export const INVITATION_STATUSES = ["pending", "accepted", "declined", "expired"] as const;
+export type InvitationStatus = (typeof INVITATION_STATUSES)[number];
+export type Channel = "web" | "whatsapp";
+export type MessageRole = "user" | "assistant" | "system";
+
 /* ─────────── families ─────────── */
 export const families = pgTable("families", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -62,8 +72,7 @@ export const familyMembers = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    role: text("role").notNull().default("member"),
-    // 'owner' | 'parent' | 'partner' | 'child' | 'elder' | 'helper' | 'member'
+    role: text("role").$type<FamilyRole>().notNull().default("member"),
     displayName: text("display_name"),
     joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -86,9 +95,9 @@ export const familyInvitations = pgTable("family_invitations", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   phone: text("phone").notNull(),
-  proposedRole: text("proposed_role").notNull().default("member"),
+  proposedRole: text("proposed_role").$type<FamilyRole>().notNull().default("member"),
   proposedName: text("proposed_name"),
-  status: text("status").notNull().default("pending"), // 'pending' | 'accepted' | 'declined' | 'expired'
+  status: text("status").$type<InvitationStatus>().notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   respondedAt: timestamp("responded_at", { withTimezone: true }),
 });
@@ -99,7 +108,7 @@ export const sessions = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    channel: text("channel").notNull().default("web"), // 'web' | 'whatsapp'
+    channel: text("channel").$type<Channel>().notNull().default("web"),
     startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     summary: text("summary"),
@@ -113,7 +122,7 @@ export const messages = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     sessionId: uuid("session_id").notNull().references(() => sessions.id, { onDelete: "cascade" }),
-    role: text("role").notNull(), // 'user' | 'assistant' | 'system'
+    role: text("role").$type<MessageRole>().notNull(),
     content: text("content").notNull(),
     model: text("model"),
     // Provider message id (e.g. WhatsApp msg id) for ack/dedupe.

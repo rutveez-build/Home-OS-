@@ -10,7 +10,9 @@ import {
   messages,
   sessions,
   users,
+  FAMILY_ROLES,
   type Family,
+  type FamilyRole,
   type FamilyMember,
   type Memory,
   type Message,
@@ -20,31 +22,26 @@ import {
 
 /* ─────────── users ─────────── */
 
+// Single-statement upserts: concurrent requests for the same device/phone
+// race under find-then-insert and throw unique violations.
 export async function upsertUserByDeviceId(args: {
   deviceId: string;
   name: string;
   language: "en" | "hi" | "kn" | string;
 }): Promise<User> {
-  const existing = await db.query.users.findFirst({
-    where: eq(users.deviceId, args.deviceId),
-  });
-  if (existing) {
-    const [u] = await db
-      .update(users)
-      .set({ name: args.name, language: args.language, lastSeenAt: new Date() })
-      .where(eq(users.id, existing.id))
-      .returning();
-    return u;
-  }
-  const [created] = await db
+  const [u] = await db
     .insert(users)
     .values({
       deviceId: args.deviceId,
       name: args.name,
       language: args.language,
     })
+    .onConflictDoUpdate({
+      target: users.deviceId,
+      set: { name: args.name, language: args.language, lastSeenAt: new Date() },
+    })
     .returning();
-  return created;
+  return u;
 }
 
 export async function upsertUserByPhone(args: {
@@ -52,30 +49,23 @@ export async function upsertUserByPhone(args: {
   name?: string;
   language?: string;
 }): Promise<User> {
-  const existing = await db.query.users.findFirst({
-    where: eq(users.phone, args.phone),
-  });
-  if (existing) {
-    const [u] = await db
-      .update(users)
-      .set({
-        ...(args.name && { name: args.name }),
-        ...(args.language && { language: args.language }),
-        lastSeenAt: new Date(),
-      })
-      .where(eq(users.id, existing.id))
-      .returning();
-    return u;
-  }
-  const [created] = await db
+  const [u] = await db
     .insert(users)
     .values({
       phone: args.phone,
       name: args.name ?? "friend",
       language: args.language ?? "en",
     })
+    .onConflictDoUpdate({
+      target: users.phone,
+      set: {
+        ...(args.name ? { name: args.name } : {}),
+        ...(args.language ? { language: args.language } : {}),
+        lastSeenAt: new Date(),
+      },
+    })
     .returning();
-  return created;
+  return u;
 }
 
 export async function findUserByPhone(phone: string): Promise<User | null> {
@@ -126,7 +116,7 @@ export async function listFamilyMembers(familyId: string): Promise<
 export async function addFamilyMember(args: {
   familyId: string;
   userId: string;
-  role: string;
+  role: FamilyRole;
   displayName?: string;
 }): Promise<FamilyMember> {
   const [m] = await db
@@ -143,7 +133,7 @@ export async function createInvitation(args: {
   familyId: string;
   invitedByUserId: string;
   phone: string;
-  proposedRole?: string;
+  proposedRole?: FamilyRole;
   proposedName?: string;
 }) {
   const [inv] = await db
@@ -176,6 +166,56 @@ export async function acceptInvitation(invitationId: string) {
     .where(eq(familyInvitations.id, invitationId));
 }
 
+// Atomic invite acceptance: user upsert + membership + status flip in one
+// transaction. Two concurrent YES replies can't create inconsistent state —
+// the status update is guarded so only the first commit wins.
+export async function acceptInvitationAtomic(args: {
+  invitationId: string;
+  phone: string;
+  proposedName?: string | null;
+  proposedRole: FamilyRole;
+  familyId: string;
+}): Promise<User | null> {
+  return db.transaction(async (tx) => {
+    const claimed = await tx
+      .update(familyInvitations)
+      .set({ status: "accepted", respondedAt: new Date() })
+      .where(
+        and(
+          eq(familyInvitations.id, args.invitationId),
+          eq(familyInvitations.status, "pending")
+        )
+      )
+      .returning();
+    if (!claimed.length) return null; // someone else accepted first
+
+    const [user] = await tx
+      .insert(users)
+      .values({
+        phone: args.phone,
+        name: args.proposedName ?? "friend",
+        language: "en",
+      })
+      .onConflictDoUpdate({
+        target: users.phone,
+        set: { lastSeenAt: new Date() },
+      })
+      .returning();
+
+    await tx
+      .insert(familyMembers)
+      .values({
+        familyId: args.familyId,
+        userId: user.id,
+        role: args.proposedRole,
+        displayName: args.proposedName ?? undefined,
+      })
+      .onConflictDoNothing();
+
+    return user;
+  });
+}
+
 /* ─────────── sessions ─────────── */
 
 export async function getOrCreateActiveSession(
@@ -196,6 +236,17 @@ export async function getOrCreateActiveSession(
 }
 
 /* ─────────── messages ─────────── */
+
+// Idempotency guard: has this provider message already been processed?
+// Providers (Meta/Twilio) retry webhooks; without this check every retry
+// would re-run the LLM and re-reply to the user.
+export async function providerMessageSeen(providerMessageId: string): Promise<boolean> {
+  const m = await db.query.messages.findFirst({
+    where: eq(messages.providerMessageId, providerMessageId),
+    columns: { id: true },
+  });
+  return !!m;
+}
 
 export async function appendMessage(args: {
   sessionId: string;

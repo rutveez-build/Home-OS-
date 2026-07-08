@@ -1,33 +1,48 @@
 import { NextRequest } from "next/server";
-import { upsertUserByDeviceId } from "@/db/repo";
+import { z } from "zod";
+import { db } from "@/db/client";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { runChatTurn } from "@/lib/chat-core";
+import { sessionUserId } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Msg = { role: "user" | "assistant"; content: string };
+const Body = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().min(1).max(8000),
+      })
+    )
+    .min(1)
+    .max(100),
+  model: z.string().max(100).optional(),
+});
 
 export async function POST(req: NextRequest) {
-  const {
-    messages,
-    model,
-    profile,
-  } = (await req.json()) as {
-    messages: Msg[];
-    model?: string;
-    profile: { deviceId: string; name: string; language: string };
-  };
-
-  const last = messages[messages.length - 1];
-  if (!last || last.role !== "user") {
-    return new Response("Expected last message to be user", { status: 400 });
+  // Identity comes from the signed cookie only — never the request body.
+  const userId = await sessionUserId();
+  if (!userId) {
+    return new Response("No session — complete onboarding first", { status: 401 });
+  }
+  const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  if (!user) {
+    return new Response("Unknown session user", { status: 401 });
   }
 
-  const user = await upsertUserByDeviceId({
-    deviceId: profile.deviceId,
-    name: profile.name,
-    language: profile.language,
-  });
+  const parsed = Body.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return new Response("Invalid request body", { status: 400 });
+  }
+  const { messages, model } = parsed.data;
+
+  const last = messages[messages.length - 1];
+  if (last.role !== "user") {
+    return new Response("Expected last message to be user", { status: 400 });
+  }
 
   const encoder = new TextEncoder();
   const body = new ReadableStream({

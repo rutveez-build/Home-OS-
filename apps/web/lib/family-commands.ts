@@ -10,16 +10,15 @@
 // the LLM when the user sends one of these.
 
 import {
-  acceptInvitation,
-  addFamilyMember,
+  acceptInvitationAtomic,
   createFamily,
   createInvitation,
   familiesForUser,
   findUserByPhone,
   listFamilyMembers,
   pendingInvitationForPhone,
-  upsertUserByPhone,
 } from "@/db/repo";
+import { FAMILY_ROLES, type FamilyRole } from "@/db/schema";
 import { getProvider } from "./whatsapp";
 
 export type CommandResult = {
@@ -97,6 +96,12 @@ async function handleFamily(args: {
       };
     }
     const [, name, phone, role] = m;
+    if (role && !(FAMILY_ROLES as readonly string[]).includes(role.toLowerCase())) {
+      return {
+        handled: true,
+        reply: `Role must be one of: ${FAMILY_ROLES.join(", ")}.`,
+      };
+    }
     const fams = await familiesForUser(args.userId);
     if (!fams.length) {
       return { handled: true, reply: "Create a family first: `/family create NAME`." };
@@ -106,7 +111,7 @@ async function handleFamily(args: {
       familyId: family.id,
       invitedByUserId: args.userId,
       phone,
-      proposedRole: role ?? "member",
+      proposedRole: (role?.toLowerCase() as FamilyRole) ?? "member",
       proposedName: name,
     });
     // Fire a WhatsApp invite to that phone.
@@ -139,17 +144,14 @@ async function handleYes(args: { userPhone?: string }): Promise<CommandResult> {
   if (!args.userPhone) return { handled: false };
   const inv = await pendingInvitationForPhone(args.userPhone);
   if (!inv) return { handled: false }; // let the LLM handle it normally
-  const user = await upsertUserByPhone({
+  const user = await acceptInvitationAtomic({
+    invitationId: inv.id,
     phone: args.userPhone,
-    name: inv.proposedName ?? "friend",
-  });
-  await addFamilyMember({
+    proposedName: inv.proposedName,
+    proposedRole: inv.proposedRole,
     familyId: inv.familyId,
-    userId: user.id,
-    role: inv.proposedRole,
-    displayName: inv.proposedName ?? undefined,
   });
-  await acceptInvitation(inv.id);
+  if (!user) return { handled: false }; // raced: already accepted elsewhere
   return {
     handled: true,
     reply: `Welcome to the family. I'm here whenever you need anything.`,

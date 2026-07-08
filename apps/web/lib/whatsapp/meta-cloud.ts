@@ -54,7 +54,15 @@ export function verifyMetaSignature(
   rawBody: string,
   signatureHeader: string
 ): boolean {
-  if (!APP_SECRET) return true; // skip if not configured (dev mode)
+  if (!APP_SECRET) {
+    // Fail closed: an unsigned webhook means anyone can impersonate Meta.
+    // Explicit opt-out for local dev only.
+    if (process.env.ALLOW_UNSIGNED_WEBHOOKS === "true") return true;
+    console.error(
+      "[meta-cloud] META_APP_SECRET not set — rejecting webhook. Set ALLOW_UNSIGNED_WEBHOOKS=true for local dev."
+    );
+    return false;
+  }
   if (!signatureHeader?.startsWith("sha256=")) return false;
   const expected = crypto
     .createHmac("sha256", APP_SECRET)

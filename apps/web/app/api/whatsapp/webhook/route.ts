@@ -22,7 +22,7 @@ import {
 } from "@/lib/whatsapp/meta-cloud";
 import { parseTwilioInbound } from "@/lib/whatsapp/twilio";
 import { getProvider, type InboundMessage } from "@/lib/whatsapp";
-import { upsertUserByPhone } from "@/db/repo";
+import { providerMessageSeen, upsertUserByPhone } from "@/db/repo";
 import { runChatTurn } from "@/lib/chat-core";
 import { runCommandIfAny } from "@/lib/family-commands";
 import { transcribe } from "@/lib/asr";
@@ -81,6 +81,11 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleOne(msg: InboundMessage) {
+  // 0) Idempotency: providers retry webhooks — never process a message twice.
+  if (msg.providerMessageId && (await providerMessageSeen(msg.providerMessageId))) {
+    return;
+  }
+
   // 1) Resolve text — transcribe voice notes if present.
   let text = msg.text ?? "";
   if (!text && msg.audioUrl) {

@@ -45,6 +45,15 @@ function ChatRoom({ profile, onResetProfile }: { profile: Profile; onResetProfil
   const scrollerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Establish the signed session cookie; /api/chat trusts only the cookie.
+  useEffect(() => {
+    fetch("/api/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId: profile.deviceId, name: profile.name, language: profile.language }),
+    }).catch(() => {});
+  }, [profile.deviceId, profile.name, profile.language]);
+
   useEffect(() => {
     scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, pending]);
@@ -66,10 +75,7 @@ function ChatRoom({ profile, onResetProfile }: { profile: Profile; onResetProfil
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: next,
-          profile: { name: profile.name, language: profile.language, deviceId: profile.deviceId },
-        }),
+        body: JSON.stringify({ messages: next }),
       });
       if (!res.body) throw new Error("no stream");
       const reader = res.body.getReader();

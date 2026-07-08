@@ -100,7 +100,18 @@ export async function runChatTurn(
       }
     }
   } catch (err) {
+    // Don't return a truncated reply as if it succeeded. Persist what the
+    // user already saw (marked partial), then let the caller handle the error.
     console.error("[chat-core] stream error", err);
+    if (acc) {
+      await appendMessage({
+        sessionId: session.id,
+        role: "assistant",
+        content: acc,
+        model: `${model} (partial)`,
+      }).catch(() => {});
+    }
+    throw err;
   }
 
   if (acc) {
