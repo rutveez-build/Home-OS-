@@ -28,8 +28,8 @@ export default function Chat() {
   if (!profile)
     return (
       <Onboarding
-        onDone={(name, language) => {
-          const p: Profile = { name, language, deviceId: newDeviceId(), onboardedAt: new Date().toISOString() };
+        onDone={(name, language, email) => {
+          const p: Profile = { name, language, email, deviceId: newDeviceId(), onboardedAt: new Date().toISOString() };
           saveProfile(p);
           setProfile(p);
         }}
@@ -45,14 +45,16 @@ function ChatRoom({ profile, onResetProfile }: { profile: Profile; onResetProfil
   const scrollerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Establish the signed session cookie; /api/chat trusts only the cookie.
+  // Guests get a device-bound session; account users already hold the
+  // cookie from /api/auth (multi-device, survives reinstalls).
   useEffect(() => {
+    if (profile.email) return;
     fetch("/api/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ deviceId: profile.deviceId, name: profile.name, language: profile.language }),
     }).catch(() => {});
-  }, [profile.deviceId, profile.name, profile.language]);
+  }, [profile.email, profile.deviceId, profile.name, profile.language]);
 
   useEffect(() => {
     scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" });
@@ -77,6 +79,15 @@ function ChatRoom({ profile, onResetProfile }: { profile: Profile; onResetProfil
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: next }),
       });
+      if (res.status === 401) {
+        setMessages((m) => { const c = [...m]; c[c.length - 1] = { role: "assistant", content: "Your session expired — refresh the page and log in again." }; return c; });
+        return;
+      }
+      if (res.status === 429) {
+        const text = await res.text();
+        setMessages((m) => { const c = [...m]; c[c.length - 1] = { role: "assistant", content: text }; return c; });
+        return;
+      }
       if (!res.body) throw new Error("no stream");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();

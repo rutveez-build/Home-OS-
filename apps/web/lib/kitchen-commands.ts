@@ -174,7 +174,9 @@ async function handlePlan(familyId: string, ctx: Ctx): Promise<CommandResult> {
       });
       return {
         handled: true,
-        reply: `Draft for ${draft.cookName}:\n\n${draft.text}\n\nReply \`/plan cook send\` to send it on WhatsApp.`,
+        reply: draft.cookPhone
+          ? `Draft for ${draft.cookName}:\n\n${draft.text}\n\nReply \`/plan cook send\` to send it on WhatsApp — or copy the message above and forward it yourself.`
+          : `Draft for ${draft.cookName}:\n\n${draft.text}\n\n📋 Copy the message above and forward it to ${draft.cookName} on WhatsApp.`,
       };
     }
 

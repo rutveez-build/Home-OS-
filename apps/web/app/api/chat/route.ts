@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@/db/client";
-import { users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { messages as messagesTable, sessions, users } from "@/db/schema";
+import { and, eq, gte, sql } from "drizzle-orm";
 import { runChatTurn } from "@/lib/chat-core";
 import { runCommandIfAny } from "@/lib/family-commands";
 import { sessionUserId } from "@/lib/session";
@@ -32,6 +32,30 @@ export async function POST(req: NextRequest) {
   const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
   if (!user) {
     return new Response("Unknown session user", { status: 401 });
+  }
+
+  // Daily cap — protects the shared demo's free LLM quota from one heavy user.
+  const cap = Number(process.env.DAILY_MESSAGE_CAP ?? 60);
+  if (Number.isFinite(cap) && cap > 0) {
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messagesTable)
+      .innerJoin(sessions, eq(messagesTable.sessionId, sessions.id))
+      .where(
+        and(
+          eq(sessions.userId, userId),
+          eq(messagesTable.role, "user"),
+          gte(messagesTable.createdAt, dayStart)
+        )
+      );
+    if (count >= cap) {
+      return new Response(
+        "You've hit today's message limit on the shared demo — it resets at midnight. Your plans and settings are safe.",
+        { status: 429 }
+      );
+    }
   }
 
   const parsed = Body.safeParse(await req.json().catch(() => null));

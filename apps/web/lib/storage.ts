@@ -2,6 +2,7 @@ export type Profile = {
   name: string;
   language: "en" | "hi" | "kn";
   deviceId: string;
+  email?: string; // account-based session (cookie already set by /api/auth)
   onboardedAt: string;
 };
 

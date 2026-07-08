@@ -51,6 +51,8 @@ export const users = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     deviceId: text("device_id").unique(),
     phone: text("phone").unique(), // E.164, e.g. "+919876543210"
+    email: text("email").unique(), // demo accounts: email + password login
+    passwordHash: text("password_hash"), // bcrypt; null for device/WhatsApp-only users
     name: text("name").notNull().default("friend"),
     language: text("language").notNull().default("en"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
