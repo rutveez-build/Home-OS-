@@ -79,7 +79,12 @@ Approval-first, in any chat (web or WhatsApp):
 
 Every approval, send, and export lands in an append-only `audit_log`. The
 assistant never orders groceries, never messages staff unprompted, never acts
-without a human yes. Assistant-surface integration contract: `docs/assistant-tools.md`.
+without a human yes.
+
+The same loop is also reachable from ChatGPT, Claude, or Codex over MCP — mint
+a per-household token from **Home → Connect** in the web app and point your
+client at `/api/mcp`. Setup steps: `docs/mcp-setup.md`. Tool contract:
+`docs/assistant-tools.md`.
 
 
 ---
