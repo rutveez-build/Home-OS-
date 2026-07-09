@@ -365,6 +365,43 @@ export const householdTokens = pgTable(
   })
 );
 
+/* ─────────── OAuth (dynamic client registration for claude.ai / ChatGPT web connectors) ─────────── */
+// A thin standards layer in front of household_tokens: the /authorize +
+// /token dance ends by minting the exact same hos_ token mintToken() already
+// produces from the Connect screen. Public clients only (PKCE, no secret) —
+// that's what ChatGPT/claude.ai's connector registration expects.
+export const oauthClients = pgTable("oauth_clients", {
+  id: uuid("id").defaultRandom().primaryKey(), // this IS the client_id
+  clientName: text("client_name").notNull(),
+  redirectUris: jsonb("redirect_uris").$type<string[]>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// One-time-use authorization codes, short-lived. familyId/userId are fixed
+// at consent time (the household the logged-in approver picked); the token
+// endpoint never re-derives them from anything client-supplied.
+export const oauthAuthCodes = pgTable(
+  "oauth_auth_codes",
+  {
+    code: text("code").primaryKey(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => oauthClients.id, { onDelete: "cascade" }),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    redirectUri: text("redirect_uri").notNull(),
+    codeChallenge: text("code_challenge").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+  },
+  (t) => ({ clientIdx: index("oauth_auth_codes_client_idx").on(t.clientId) })
+);
+
 /* ─────────── types ─────────── */
 export type Family = typeof families.$inferSelect;
 export type User = typeof users.$inferSelect;
@@ -383,3 +420,5 @@ export type ShoppingList = typeof shoppingLists.$inferSelect;
 export type Consent = typeof consents.$inferSelect;
 export type MealFeedback = typeof mealFeedback.$inferSelect;
 export type HouseholdToken = typeof householdTokens.$inferSelect;
+export type OAuthClient = typeof oauthClients.$inferSelect;
+export type OAuthAuthCode = typeof oauthAuthCodes.$inferSelect;

@@ -999,24 +999,24 @@ function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: 
             {connectClient === "claude-web" && (
               <ol className="mt-2.5 list-decimal space-y-1 pl-4 text-[12px] text-ink/70 dark:text-white/75">
                 <li>On claude.ai, go to <b>Settings → Connectors → Add custom connector</b>.</li>
-                <li>Paste the Server URL shown above.</li>
-                <li>If it asks for an auth method, choose <b>Bearer token / API key</b> and paste the token above.</li>
-                <li>Save — Claude can now use Home OS in any chat.</li>
+                <li>Paste the Server URL shown above — that's the only field it needs.</li>
+                <li>Claude opens a Home OS sign-in + approval screen — sign in and tap <b>Approve</b> there (not here).</li>
+                <li>Claude can now use Home OS in any chat.</li>
               </ol>
             )}
 
             {connectClient === "chatgpt" && (
               <ol className="mt-2.5 list-decimal space-y-1 pl-4 text-[12px] text-ink/70 dark:text-white/75">
                 <li>In ChatGPT, go to <b>Settings → Connectors</b> (turn on Developer Mode first if you don't see "Add connector").</li>
-                <li>Paste the Server URL shown above.</li>
-                <li>Choose <b>API key / Bearer token</b> auth and paste the token above.</li>
-                <li>Save — ChatGPT can now use Home OS in any chat.</li>
+                <li>Paste the Server URL shown above — that's the only field it needs.</li>
+                <li>ChatGPT opens a Home OS sign-in + approval screen — sign in and tap <b>Approve</b> there (not here).</li>
+                <li>ChatGPT can now use Home OS in any chat.</li>
               </ol>
             )}
 
             {(connectClient === "claude-web" || connectClient === "chatgpt") && (
               <p className="mt-2 text-[11px] text-ink/45 dark:text-white/45">
-                Only see an OAuth sign-in, no token field? Use the Claude Code or Codex CLI tabs instead — those definitely accept this token.
+                No need to copy the token above for this one — it signs in and approves the connection itself. The token above is only for the CLI tabs.
               </p>
             )}
           </div>

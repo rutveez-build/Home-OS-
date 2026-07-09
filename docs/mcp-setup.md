@@ -19,26 +19,33 @@ immediately, on the very next call.
 
 ## 2. Add the connector in your client
 
-Every client needs the same two things: the **server URL** and the token as
-a **Bearer** value in the `Authorization` header. Where exactly each client's
-UI lives changes over time — if these steps don't match what you see, check
-that client's own docs for "remote MCP server" or "custom connector."
+Two different mechanisms, depending on the client:
 
-### Claude (claude.ai or Claude Code)
+- **claude.ai and ChatGPT** (web) speak OAuth: paste **only the server URL**.
+  The client discovers `/.well-known/oauth-authorization-server`, registers
+  itself, and opens a Home OS sign-in + approval page in your browser —
+  the `hos_...` token from step 1 is never needed for these two, and isn't
+  shown to the client directly; approving mints one behind the scenes.
+- **Claude Code CLI and Codex CLI** take the server URL **and** the
+  `hos_...` token directly, no browser round-trip.
 
-- **claude.ai**: Settings → Connectors → Add connector → paste the server URL,
-  choose Bearer token auth, paste your `hos_...` token.
-- **Claude Code CLI**:
-  ```bash
-  claude mcp add home-os --url https://<your-domain>/api/mcp \
-    --header "Authorization: Bearer hos_..."
-  ```
+### claude.ai
+
+Settings → Connectors → Add custom connector → paste the server URL →
+Claude opens a Home OS sign-in + consent screen → sign in and tap Approve.
 
 ### ChatGPT
 
-Settings → Connectors → Add connector (or "Create" under Developer Mode,
-depending on your plan) → paste the server URL → choose API key / Bearer
-token auth → paste your `hos_...` token.
+Settings → Connectors → Add connector (turn on Developer Mode first if you
+don't see it) → paste the server URL → ChatGPT opens the same sign-in +
+consent screen → sign in and tap Approve.
+
+### Claude Code CLI
+
+```bash
+claude mcp add home-os --url https://<your-domain>/api/mcp \
+  --header "Authorization: Bearer hos_..."
+```
 
 ### Codex CLI
 
@@ -52,6 +59,10 @@ bearer_token = "hos_..."
 
 If your installed Codex CLI version doesn't support `url`-based (remote)
 servers yet, run `codex mcp --help` to check what your version supports.
+
+Every connection — OAuth-approved or CLI-pasted — ends up as the exact same
+kind of row on the Connect screen's "Active connectors" list, and revokes
+the same way.
 
 ## 3. Try it
 

@@ -12,7 +12,6 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { MCP_TOOLS } from "@/lib/mcp/tools";
 import { resolveIdentity, type McpIdentity } from "@/lib/mcp/context";
 import { HANDLERS } from "@/lib/mcp/handlers";
@@ -20,21 +19,17 @@ import { can, deniedReply } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
-function buildServer(): McpServer {
+// identity is resolved once in handle() before this is ever called — every
+// tool call for this request closes over the same, already-authenticated
+// caller, so there's no per-call auth branch to forget.
+function buildServer(identity: McpIdentity): McpServer {
   const server = new McpServer({ name: "Home OS", version: "0.1.0" });
 
   for (const tool of MCP_TOOLS) {
     server.registerTool(
       tool.name,
       { description: tool.description, inputSchema: tool.inputShape },
-      async (args, extra) => {
-        const identity = extra.authInfo?.extra as McpIdentity | undefined;
-        if (!identity) {
-          return {
-            isError: true,
-            content: [{ type: "text" as const, text: "Not authenticated — this connector isn't linked to a household yet." }],
-          };
-        }
+      async (args) => {
         if (tool.action && !can(identity.role, tool.action)) {
           return { isError: true, content: [{ type: "text" as const, text: deniedReply(tool.action) }] };
         }
@@ -54,15 +49,31 @@ function buildServer(): McpServer {
 // requests"). Registering 12 tool schemas is cheap, no I/O, so rebuilding
 // the server per request costs nothing worth optimizing away.
 async function handle(req: Request): Promise<Response> {
-  const server = buildServer();
+  const identity = await resolveIdentity(req);
+
+  // A real 401 + WWW-Authenticate is what makes OAuth-capable clients
+  // (ChatGPT, claude.ai) discover /.well-known/oauth-protected-resource and
+  // drive the /authorize consent flow on their own — without it, they have
+  // no signal to ever attempt auth and just surface the eventual tool-call
+  // error as dead-end text. Static bearer-token clients (Claude Code, Codex)
+  // are unaffected: they already send a valid token, so identity resolves
+  // and this branch never runs for them.
+  if (!identity) {
+    const origin = new URL(req.url).origin;
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: {
+        "content-type": "application/json",
+        "www-authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+      },
+    });
+  }
+
+  const server = buildServer(identity);
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   await server.connect(transport);
 
-  const identity = await resolveIdentity(req);
-  const authInfo: AuthInfo | undefined = identity
-    ? { token: "", clientId: identity.familyId, scopes: [], extra: identity }
-    : undefined;
-  return transport.handleRequest(req, { authInfo });
+  return transport.handleRequest(req);
 }
 
 export async function POST(req: Request) { return handle(req); }
