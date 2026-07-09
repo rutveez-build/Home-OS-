@@ -873,18 +873,49 @@ function FeedbackScreen({ flash }: { flash: (m: string) => void }) {
 
 type Msg = { role: "user" | "assistant"; content: string };
 
+// Command reference — a cheat sheet for the power-user slash commands.
+// "direct" chips send immediately (nothing to fill in); the rest drop a
+// template into the box so the user edits the specifics before sending.
+const QUICK_COMMANDS = [
+  { label: "Setup checklist", cmd: "/setup" },
+  { label: "Show household", cmd: "/household show" },
+  { label: "Show cook", cmd: "/cook show" },
+  { label: "Show plan", cmd: "/plan show" },
+  { label: "Draft this week's plan", cmd: "/plan week" },
+  { label: "Approve plan", cmd: "/plan approve" },
+  { label: "Draft cook message", cmd: "/plan cook" },
+  { label: "Send cook message", cmd: "/plan cook send" },
+  { label: "Shopping list", cmd: "/plan shopping" },
+  { label: "Privacy & my data", cmd: "/privacy" },
+  { label: "Export my data", cmd: "/export" },
+  { label: "Delete household", cmd: "/delete" },
+];
+const TEMPLATE_COMMANDS = [
+  { label: "Set diets", cmd: "/household diets " },
+  { label: "Set allergies", cmd: "/household allergies " },
+  { label: "Set cuisines", cmd: "/household cuisines " },
+  { label: "Set meal times", cmd: "/household meals ld" },
+  { label: "Set budget", cmd: "/household budget " },
+  { label: "Add / change cook", cmd: "/cook set " },
+  { label: "Change a meal", cmd: "/plan change TUE dinner " },
+  { label: "Give feedback", cmd: "/feedback dinner cooked liked" },
+  { label: "Invite family member", cmd: "/family invite " },
+];
+
 function FreeChat({ onBack }: { onBack: () => void }) {
   const [messages, setMessages] = useState<Msg[]>([
     { role: "assistant", content: "Ask me anything about your household — meals, schedules, or just to talk something through." },
   ]);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
+  const [showCommands, setShowCommands] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" }); }, [messages, pending]);
 
-  async function send() {
-    const trimmed = input.trim();
+  async function send(override?: string) {
+    const trimmed = (override ?? input).trim();
     if (!trimmed || pending) return;
     const next = [...messages, { role: "user" as const, content: trimmed }];
     setMessages([...next, { role: "assistant", content: "" }]);
@@ -927,17 +958,59 @@ function FreeChat({ onBack }: { onBack: () => void }) {
         </div>
       </div>
       <div className="border-t border-line bg-bg/95 px-3 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur dark:border-line-dark dark:bg-bg-dark/95">
-        <div className="mx-auto flex max-w-2xl items-end gap-2">
-          <button onClick={onBack} className="shrink-0 rounded-full border border-line px-3 py-2.5 text-[12.5px] font-medium dark:border-line-dark">← Back</button>
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-            placeholder="Type a message…"
-            rows={1}
-            className="block w-full max-h-32 min-h-[44px] resize-none rounded-3xl border border-line bg-surface px-4 py-2.5 text-[15px] leading-snug outline-none focus:border-brand/40 dark:border-line-dark dark:bg-surface-dark dark:text-white"
-          />
-          <button onClick={send} disabled={pending || !input.trim()} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-white disabled:opacity-30">→</button>
+        <div className="mx-auto max-w-2xl">
+          <button
+            onClick={() => setShowCommands((v) => !v)}
+            className="mb-1.5 flex items-center gap-1 text-[12px] font-medium text-ink/55 dark:text-white/55"
+          >
+            <span>{showCommands ? "▾" : "▸"}</span> Commands — tap instead of typing
+          </button>
+          {showCommands && (
+            <div className="mb-2 space-y-1.5">
+              <div>
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-brand">Tap to run</p>
+                <div className="flex gap-1.5 overflow-x-auto pb-1">
+                  {QUICK_COMMANDS.map((c) => (
+                    <button
+                      key={c.cmd}
+                      onClick={() => send(c.cmd)}
+                      disabled={pending}
+                      className="shrink-0 whitespace-nowrap rounded-full border border-brand bg-brand/10 px-3 py-1.5 text-[12.5px] font-medium text-brand disabled:opacity-40"
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-ink/45 dark:text-white/45">Tap to fill in, then send</p>
+                <div className="flex gap-1.5 overflow-x-auto pb-1">
+                  {TEMPLATE_COMMANDS.map((c) => (
+                    <button
+                      key={c.cmd}
+                      onClick={() => { setInput(c.cmd); inputRef.current?.focus(); }}
+                      className="shrink-0 whitespace-nowrap rounded-full border border-line px-3 py-1.5 text-[12.5px] font-medium text-ink/70 dark:border-line-dark dark:text-white/70"
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="flex items-end gap-2">
+            <button onClick={onBack} className="shrink-0 rounded-full border border-line px-3 py-2.5 text-[12.5px] font-medium dark:border-line-dark">← Back</button>
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+              placeholder="Type a message…"
+              rows={1}
+              className="block w-full max-h-32 min-h-[44px] resize-none rounded-3xl border border-line bg-surface px-4 py-2.5 text-[15px] leading-snug outline-none focus:border-brand/40 dark:border-line-dark dark:bg-surface-dark dark:text-white"
+            />
+            <button onClick={() => send()} disabled={pending || !input.trim()} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-white disabled:opacity-30">→</button>
+          </div>
         </div>
       </div>
     </div>
