@@ -10,7 +10,7 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
-import { familiesForUser } from "@/db/repo";
+import { familiesForUser, createFamily } from "@/db/repo";
 import { getClient } from "@/lib/oauth/clients";
 import { issueCode } from "@/lib/oauth/codes";
 import { SESSION_COOKIE, sealSession, sessionUserId } from "@/lib/session";
@@ -42,7 +42,7 @@ function page(title: string, body: string): NextResponse {
   h1 { font-size: 19px; margin: 0 0 6px; }
   p { font-size: 14px; line-height: 1.5; color: #555; margin: 0 0 16px; }
   label { display: block; font-size: 12.5px; font-weight: 600; margin: 12px 0 4px; }
-  input[type=email], input[type=password] { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px;
+  input[type=email], input[type=password], input[type=text] { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px;
          border: 1px solid #ddd; font-size: 14px; }
   button { width: 100%; margin-top: 16px; padding: 12px; border: none; border-radius: 12px; font-size: 14px;
          font-weight: 600; cursor: pointer; }
@@ -84,6 +84,23 @@ function renderLogin(p: OAuthParams, clientName: string, error?: string): NextRe
        <label for="password">Password</label>
        <input type="password" id="password" name="password" required>
        <button class="primary" type="submit">Sign in</button>
+     </form>`
+  );
+}
+
+function renderCreateHousehold(p: OAuthParams, clientName: string, error?: string): NextResponse {
+  return page(
+    "Name your household",
+    `<h1>Name your household</h1>
+     <p>${escapeHtml(clientName)} wants to connect, but this account doesn't have a household on ${escapeHtml(brand.name)} yet.
+     Set one up now — it takes a second — then we'll continue to the approval step.</p>
+     ${error ? `<div class="error">${escapeHtml(error)}</div>` : ""}
+     <form method="post">
+       <input type="hidden" name="_step" value="create_household">
+       ${hiddenFields(p)}
+       <label for="householdName">Household name</label>
+       <input type="text" id="householdName" name="householdName" required autofocus placeholder="e.g. The Sharmas">
+       <button class="primary" type="submit">Create &amp; continue</button>
      </form>`
   );
 }
@@ -170,7 +187,7 @@ export async function GET(req: NextRequest) {
   if (!userId) return renderLogin(v.params, v.clientName);
 
   const fams = await familiesForUser(userId);
-  if (!fams.length) return renderError("No household set up yet — finish onboarding in the app first, then reconnect.");
+  if (!fams.length) return renderCreateHousehold(v.params, v.clientName);
 
   return renderConsent(v.params, v.clientName, fams[0].family.name);
 }
@@ -194,9 +211,9 @@ export async function POST(req: NextRequest) {
       return renderLogin(v.params, v.clientName, "Wrong email or password.");
     }
     const fams = await familiesForUser(user.id);
-    if (!fams.length) return renderError("No household set up yet — finish onboarding in the app first, then reconnect.");
-
-    const res = renderConsent(v.params, v.clientName, fams[0].family.name);
+    const res = fams.length
+      ? renderConsent(v.params, v.clientName, fams[0].family.name)
+      : renderCreateHousehold(v.params, v.clientName);
     res.cookies.set(SESSION_COOKIE, sealSession(user.id), {
       httpOnly: true,
       sameSite: "lax",
@@ -205,6 +222,23 @@ export async function POST(req: NextRequest) {
       path: "/",
     });
     return res;
+  }
+
+  if (step === "create_household") {
+    const userId = await sessionUserId();
+    if (!userId) return renderLogin(v.params, v.clientName, "Your session expired — sign in again.");
+
+    // Re-check rather than trust the form got here correctly: a user who
+    // already has a household (e.g. two tabs, or hit back) goes straight to
+    // consent instead of creating a second one.
+    const existing = await familiesForUser(userId);
+    if (existing.length) return renderConsent(v.params, v.clientName, existing[0].family.name);
+
+    const name = String(form.get("householdName") ?? "").trim();
+    if (!name) return renderCreateHousehold(v.params, v.clientName, "Give your household a name.");
+
+    const family = await createFamily({ name, ownerUserId: userId });
+    return renderConsent(v.params, v.clientName, family.name);
   }
 
   if (step === "consent") {
@@ -221,7 +255,7 @@ export async function POST(req: NextRequest) {
     }
 
     const fams = await familiesForUser(userId);
-    if (!fams.length) return renderError("No household set up yet — finish onboarding in the app first, then reconnect.");
+    if (!fams.length) return renderCreateHousehold(v.params, v.clientName);
 
     const code = await issueCode({
       clientId: v.params.clientId,
