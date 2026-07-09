@@ -41,7 +41,10 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json(
-    { access_token: token, token_type: "bearer" },
+    // RFC 6749's registered token type is "Bearer" (capital B) — some
+    // clients build the Authorization header directly from this value
+    // rather than hardcoding it, so casing here isn't cosmetic.
+    { access_token: token, token_type: "Bearer" },
     { headers: { "cache-control": "no-store" } }
   );
 }
