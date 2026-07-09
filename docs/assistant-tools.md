@@ -21,10 +21,13 @@ three surfaces.
 
 ## Tools
 
+No `create_household` — MCP tokens are minted from an *existing* household,
+so a caller with no household could never hold a valid token to invoke one
+with. Onboarding happens on the web app; MCP picks up after.
+
 | Tool | REST route | Permission | Notes |
 |---|---|---|---|
 | `get_household_state()` | `GET /api/app/state` | view | Call first — profile, cook, plan (+entries), shopping list in one shot |
-| `create_household(name)` | `POST /api/app/family` | — (no household yet) | Only for a brand-new user; `get_household_state` returns `family: null` in that case |
 | `update_household_profile(patch)` | `POST /api/app/profile` | manage_household | members, diets, allergies, dislikes, cuisines, budgetBand, mealScope — send only changed fields |
 | `set_cook(name, phone?, language?, frequency?, workingDays?)` | `POST /api/app/cook` | manage_household | |
 | `create_meal_plan()` | `POST /api/app/plan` | edit_plan | Returns a **draft** — show it, get a yes, then `approve_meal_plan` |
@@ -36,10 +39,21 @@ three surfaces.
 | `list_feedback()` | `GET /api/app/feedback` | — (any member) | |
 | `record_feedback(meal, cooked, verdict?, leftovers?, note?)` | `POST /api/app/feedback` | — (any member) | Same as the `/feedback` chat command — no role gate |
 
+Permission is enforced once, centrally, in `app/api/mcp/route.ts` before any
+handler runs — not left for each of the 11 handlers to remember individually.
+
 ## Auth
 
-Per-household API token, minted and revocable from the web app, one token
-per household, logged on every use. Build tracked as its own unit (MCP Unit
-3) — this is the one part of the plugin that gets an adversarial review
-before it ships, since a leaked or mis-scoped token is the actual attack
-surface here.
+Per-household bearer token (`hos_...`), minted and revocable from the web
+app's Connect screen, HMAC-SHA256 hashed at rest (`MCP_TOKEN_SECRET`, hard
+-required in production — no insecure fallback), logged on every use.
+Effective permissions are the minting user's *live* role — a role change,
+member removal, or household deletion takes effect immediately, no stale
+grants.
+
+Adversarially reviewed (`/codex challenge`) before shipping. Findings fixed:
+production-secret hard-fail, centralized role enforcement at the MCP
+boundary, revocation-safe `lastUsedAt` update. Accepted as by-design (matches
+GitHub/Stripe-style bearer tokens): a token revoked mid-request still
+completes that one in-flight request; the one-time plaintext reveal lives in
+browser state until the Connect screen is left.

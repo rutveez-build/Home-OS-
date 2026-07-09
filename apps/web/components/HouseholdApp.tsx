@@ -41,7 +41,8 @@ type Feedback = {
 
 type Family = { id: string; name: string; role: string } | null;
 
-type Screen = "loading" | "wizard-family" | "wizard-prefs" | "wizard-cook" | "home" | "plan" | "handoff" | "list" | "feedback" | "freechat";
+type Screen = "loading" | "wizard-family" | "wizard-prefs" | "wizard-cook" | "home" | "plan" | "handoff" | "list" | "feedback" | "connect" | "freechat";
+type TokenMeta = { id: string; label: string; createdAt: string; lastUsedAt: string | null; revokedAt: string | null };
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_ORDER: Record<string, number> = { breakfast: 0, lunch: 1, dinner: 2 };
@@ -149,6 +150,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
             familyName={family?.name ?? "your household"}
             plan={plan}
             busy={busy}
+            canManage={["owner", "parent", "partner"].includes(family?.role ?? "")}
             onAsk={async () => {
               setBusy(true);
               const res = await api<{ plan: Plan }>("/api/app/plan", { method: "POST" });
@@ -160,8 +162,10 @@ export default function HouseholdApp({ userName }: { userName: string }) {
             }}
             onOpenPlan={() => setScreen("plan")}
             onOpenChat={() => setScreen("freechat")}
+            onOpenConnect={() => setScreen("connect")}
           />
         )}
+        {screen === "connect" && <ConnectScreen flash={flash} onBack={() => setScreen("home")} />}
         {screen === "plan" && plan && (
           <PlanScreen
             plan={plan}
@@ -541,9 +545,9 @@ function CookStep({ busy, onSave, onSkip }: { busy: boolean; onSave: (body: { na
 
 /* ─────────── home screen ─────────── */
 
-function HomeScreen({ userName, familyName, plan, busy, onAsk, onOpenPlan, onOpenChat }: {
-  userName: string; familyName: string; plan: Plan; busy: boolean;
-  onAsk: () => void; onOpenPlan: () => void; onOpenChat: () => void;
+function HomeScreen({ userName, familyName, plan, busy, canManage, onAsk, onOpenPlan, onOpenChat, onOpenConnect }: {
+  userName: string; familyName: string; plan: Plan; busy: boolean; canManage: boolean;
+  onAsk: () => void; onOpenPlan: () => void; onOpenChat: () => void; onOpenConnect: () => void;
 }) {
   return (
     <ScreenShell eyebrow="Home" title={`Good to see you, ${userName}`} sub={`${familyName} · here whenever you need anything.`}>
@@ -562,6 +566,7 @@ function HomeScreen({ userName, familyName, plan, busy, onAsk, onOpenPlan, onOpe
         </div>
       )}
       <GhostButton onClick={onOpenChat}>Ask me anything else →</GhostButton>
+      {canManage && <GhostButton onClick={onOpenConnect}>Connect ChatGPT, Claude, or Codex →</GhostButton>}
     </ScreenShell>
   );
 }
@@ -865,6 +870,108 @@ function FeedbackScreen({ flash }: { flash: (m: string) => void }) {
           ))}
         </div>
       )}
+    </ScreenShell>
+  );
+}
+
+/* ─────────── connect screen (MCP tokens) ─────────── */
+
+function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: () => void }) {
+  const [tokens, setTokens] = useState<TokenMeta[] | null>(null);
+  const [label, setLabel] = useState("");
+  const [minted, setMinted] = useState<{ token: string; label: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const mcpUrl = typeof window !== "undefined" ? `${window.location.origin}/api/mcp` : "/api/mcp";
+
+  async function load() {
+    const res = await fetch("/api/app/tokens");
+    const data = await res.json().catch(() => ({}));
+    setTokens(data.tokens ?? []);
+  }
+  useEffect(() => { load(); }, []);
+
+  async function create() {
+    if (!label.trim()) return flash("Give it a label, e.g. \"ChatGPT\"");
+    setBusy(true);
+    const res = await fetch("/api/app/tokens", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: label.trim() }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) return flash(data.error ?? "Couldn't create a token");
+    setMinted({ token: data.token, label: data.record.label });
+    setLabel("");
+    load();
+  }
+
+  async function revoke(tokenId: string) {
+    const res = await fetch("/api/app/tokens/revoke", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tokenId }),
+    });
+    if (res.ok) { flash("Revoked ✓"); load(); }
+    else flash("Couldn't revoke that token");
+  }
+
+  function copy(text: string) {
+    navigator.clipboard?.writeText(text).catch(() => {});
+    flash("Copied ✓");
+  }
+
+  return (
+    <ScreenShell eyebrow="Connect" title="Link an AI assistant" sub="ChatGPT, Claude, or Codex can plan meals and check your household through this connector — always approval-gated, same as here.">
+      {minted && (
+        <div className="mb-4 rounded-2xl border-2 border-brand bg-brand/10 p-4">
+          <p className="text-[13.5px] font-semibold">Token for “{minted.label}” — shown once</p>
+          <p className="mt-1 text-[12px] text-ink/60 dark:text-white/70">Copy it now. It can't be shown again — you'd need to create a new one.</p>
+          <div className="mt-2 break-all rounded-xl bg-surface px-3 py-2 font-mono text-[12px] dark:bg-surface-dark">{minted.token}</div>
+          <button onClick={() => copy(minted.token)} className="mt-2 w-full rounded-xl bg-brand py-2 text-[13px] font-semibold text-white">Copy token</button>
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-line bg-surface p-4 dark:border-line-dark dark:bg-surface-dark">
+        <label className="block text-[12.5px] font-semibold">Server URL</label>
+        <div className="mt-1.5 flex gap-2">
+          <div className="flex-1 truncate rounded-xl border border-line bg-bg px-3 py-2 font-mono text-[12px] dark:border-line-dark dark:bg-bg-dark">{mcpUrl}</div>
+          <button onClick={() => copy(mcpUrl)} className="shrink-0 rounded-xl border border-line px-3 text-[12px] font-medium dark:border-line-dark">Copy</button>
+        </div>
+
+        <label className="mt-3 block text-[12.5px] font-semibold">New connector</label>
+        <div className="mt-1.5 flex gap-2">
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="e.g. ChatGPT"
+            className="flex-1 rounded-xl border border-line bg-bg px-3 py-2 text-[14px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white"
+          />
+          <button onClick={create} disabled={busy} className="shrink-0 rounded-xl bg-brand px-4 text-[13px] font-semibold text-white disabled:opacity-50">{busy ? "…" : "Create"}</button>
+        </div>
+      </div>
+
+      <h2 className="mt-6 text-[11px] font-bold uppercase tracking-wider text-brand">Active connectors</h2>
+      {tokens === null ? (
+        <ThinkingDots />
+      ) : tokens.filter((t) => !t.revokedAt).length === 0 ? (
+        <p className="mt-2 text-[13.5px] text-ink/55 dark:text-white/55">None yet — create one above.</p>
+      ) : (
+        <div className="mt-2 space-y-2">
+          {tokens.filter((t) => !t.revokedAt).map((t) => (
+            <div key={t.id} className="flex items-center justify-between gap-2 rounded-2xl border border-line bg-surface p-3.5 dark:border-line-dark dark:bg-surface-dark">
+              <div className="min-w-0">
+                <p className="truncate text-[14px] font-semibold">{t.label}</p>
+                <p className="text-[11.5px] text-ink/50 dark:text-white/50">
+                  {t.lastUsedAt ? `Last used ${relativeDay(t.lastUsedAt)}` : "Never used yet"}
+                </p>
+              </div>
+              <button onClick={() => revoke(t.id)} className="shrink-0 rounded-lg border border-coral px-2.5 py-1 text-[11.5px] font-medium text-coral">Revoke</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <GhostButton onClick={onBack}>← Back home</GhostButton>
     </ScreenShell>
   );
 }

@@ -2,11 +2,13 @@
 // no persistent memory across invocations, so sessionIdGenerator is left
 // undefined per the SDK's documented stateless mode).
 //
-// This file owns protocol plumbing only: register the tools from
-// lib/mcp/tools.ts, resolve the caller's identity (lib/mcp/context.ts),
-// dispatch to lib/mcp/handlers.ts, format the result. It does not itself
-// decide what a tool does or who's allowed to call it — those seams are
-// filled in by Units 3 and 4.
+// This file owns protocol plumbing AND the permission gate: it registers
+// the tools from lib/mcp/tools.ts, resolves the caller's identity
+// (lib/mcp/context.ts), enforces each tool's declared Action via
+// lib/permissions.ts BEFORE dispatching, then hands off to
+// lib/mcp/handlers.ts. Enforcing here — once, centrally — means a future
+// handler can't forget the check; it never runs without having already
+// passed it.
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -14,6 +16,7 @@ import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { MCP_TOOLS } from "@/lib/mcp/tools";
 import { resolveIdentity, type McpIdentity } from "@/lib/mcp/context";
 import { HANDLERS } from "@/lib/mcp/handlers";
+import { can, deniedReply } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -31,6 +34,9 @@ function buildServer(): McpServer {
             isError: true,
             content: [{ type: "text" as const, text: "Not authenticated — this connector isn't linked to a household yet." }],
           };
+        }
+        if (tool.action && !can(identity.role, tool.action)) {
+          return { isError: true, content: [{ type: "text" as const, text: deniedReply(tool.action) }] };
         }
         const result = await HANDLERS[tool.name](args, identity);
         if ("error" in result) {

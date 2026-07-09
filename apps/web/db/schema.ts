@@ -337,6 +337,34 @@ export const consents = pgTable(
   })
 );
 
+/* ─────────── household_tokens (MCP / assistant-surface auth) ─────────── */
+// A bearer token minted from the web app, one household per token, used by
+// external MCP clients (ChatGPT, Claude, Codex). Only the HMAC hash is
+// stored — the plaintext is shown once at mint time and never retrievable
+// again. Effective permissions come from mintedByUserId's live role, so a
+// role change or member removal takes effect immediately, no stale grants.
+export const householdTokens = pgTable(
+  "household_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    mintedByUserId: uuid("minted_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    label: text("label").notNull(), // e.g. "ChatGPT", "Claude Desktop"
+    tokenHash: text("token_hash").notNull(), // HMAC-SHA256(MCP_TOKEN_SECRET, token)
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => ({
+    familyIdx: index("household_tokens_family_idx").on(t.familyId),
+    hashUnique: uniqueIndex("household_tokens_hash_unique").on(t.tokenHash),
+  })
+);
+
 /* ─────────── types ─────────── */
 export type Family = typeof families.$inferSelect;
 export type User = typeof users.$inferSelect;
@@ -354,3 +382,4 @@ export type AuditEntry = typeof auditLog.$inferSelect;
 export type ShoppingList = typeof shoppingLists.$inferSelect;
 export type Consent = typeof consents.$inferSelect;
 export type MealFeedback = typeof mealFeedback.$inferSelect;
+export type HouseholdToken = typeof householdTokens.$inferSelect;

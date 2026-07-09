@@ -7,11 +7,14 @@
 // the exact same kitchen-repo/planner/approvals functions the web UI and
 // WhatsApp slash-commands already use — one set of rules, three surfaces.
 //
-// `action: null` marks the two kinds of tool that don't go through the
-// normal role check: creating a household (there's no role yet — the
-// handler's precondition is "no existing household", not a role lookup),
-// and feedback (open to every member, including read-only roles, matching
-// the existing /feedback chat command's behaviour).
+// `action: null` marks feedback tools, which are open to every member
+// (including read-only roles), matching the existing /feedback chat
+// command's behaviour — everything else goes through the normal role check.
+//
+// No create_household tool: MCP tokens are minted from an *existing*
+// household (lib/mcp/token.ts), so a caller with no household could never
+// hold a valid token to invoke one with — the tool would be unreachable by
+// construction. Onboarding happens on the web app; MCP picks up after.
 
 import { z } from "zod";
 import type { Action } from "../permissions";
@@ -34,14 +37,6 @@ export const MCP_TOOLS: McpToolDef[] = [
     inputShape: {},
     action: "view",
     rest: { method: "GET", path: "/api/app/state" },
-  },
-  {
-    name: "create_household",
-    description:
-      "Create the household. Only needed once, for a brand-new user with no household yet — get_household_state returns family: null in that case.",
-    inputShape: { name: z.string().trim().min(1).max(80) },
-    action: null,
-    rest: { method: "POST", path: "/api/app/family" },
   },
   {
     name: "update_household_profile",
