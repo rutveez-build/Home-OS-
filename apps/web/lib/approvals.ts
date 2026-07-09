@@ -40,7 +40,7 @@ export async function resolveApproval(args: {
   subjectId: string;
   resolvedByUserId: string;
   decision: "approved" | "declined";
-  channel?: "web" | "whatsapp";
+  channel?: "web" | "whatsapp" | "assistant";
 }): Promise<Approval | null> {
   const pending = await db.query.approvals.findFirst({
     where: and(

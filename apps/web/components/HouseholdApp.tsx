@@ -916,9 +916,16 @@ function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: 
     else flash("Couldn't revoke that token");
   }
 
-  function copy(text: string) {
-    navigator.clipboard?.writeText(text).catch(() => {});
-    flash("Copied ✓");
+  async function copy(text: string) {
+    // The token is shown exactly once — a silently-failed copy would mean the
+    // user believes they saved it when they didn't. Report the real outcome.
+    try {
+      if (!navigator.clipboard) throw new Error("no clipboard API");
+      await navigator.clipboard.writeText(text);
+      flash("Copied ✓");
+    } catch {
+      flash("Couldn't copy automatically — select the text above and copy it manually.");
+    }
   }
 
   return (

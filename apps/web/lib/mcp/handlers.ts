@@ -121,7 +121,7 @@ const handlers: Record<string, ToolHandler> = {
       subjectId: plan.id,
       resolvedByUserId: id.userId,
       decision: "approved",
-      channel: "web",
+      channel: "assistant",
     });
     if (!resolved) {
       await logAudit({
@@ -159,7 +159,7 @@ const handlers: Record<string, ToolHandler> = {
       subjectId: draft.planId,
       resolvedByUserId: id.userId,
       decision: "approved",
-      channel: "web",
+      channel: "assistant",
     });
     await getProvider().sendText(draft.cookPhone, draft.text);
     await logAudit({
