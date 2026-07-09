@@ -28,10 +28,20 @@ type Cook = {
 type PlanEntry = { day: number; meal: "breakfast" | "lunch" | "dinner"; dish: string; notes: string | null };
 type Plan = { id: string; weekStart: string; status: "draft" | "approved" | "discarded"; entries: PlanEntry[] } | null;
 type ShoppingItem = { name: string; qty: string; category: string; substitute?: string };
+type Feedback = {
+  id: string;
+  dish: string;
+  meal: "breakfast" | "lunch" | "dinner";
+  cooked: "cooked" | "skipped";
+  verdict: "liked" | "ok" | "disliked" | null;
+  leftovers: "none" | "some" | "lots" | null;
+  note: string | null;
+  createdAt: string;
+};
 
 type Family = { id: string; name: string; role: string } | null;
 
-type Screen = "loading" | "wizard-family" | "wizard-prefs" | "wizard-cook" | "home" | "plan" | "handoff" | "list" | "freechat";
+type Screen = "loading" | "wizard-family" | "wizard-prefs" | "wizard-cook" | "home" | "plan" | "handoff" | "list" | "feedback" | "freechat";
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_ORDER: Record<string, number> = { breakfast: 0, lunch: 1, dinner: 2 };
@@ -203,6 +213,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
             onBack={() => setScreen("plan")}
           />
         )}
+        {screen === "feedback" && <FeedbackScreen flash={flash} />}
         {screen === "freechat" && <FreeChat onBack={() => setScreen(plan ? "plan" : "home")} />}
       </div>
     </div>
@@ -222,16 +233,16 @@ function TopBar({ family, screen, setScreen }: { family: Family; screen: Screen;
         <span className="truncate text-[15px] font-semibold tracking-tight">{family?.name ?? brand.name}</span>
       </div>
       {!inWizard && (
-        <nav className="flex gap-1 text-[12.5px]">
-          {(["home", "plan", "list"] as const).map((s) => (
+        <nav className="flex gap-0.5 text-[12px]">
+          {(["home", "plan", "list", "feedback"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setScreen(s)}
-              className={`rounded-full px-2.5 py-1 font-medium transition ${
+              className={`rounded-full px-2 py-1 font-medium transition ${
                 screen === s ? "bg-brand/10 text-brand" : "text-ink/50 dark:text-white/50"
               }`}
             >
-              {s === "home" ? "Home" : s === "plan" ? "Plan" : "Shopping"}
+              {s === "home" ? "Home" : s === "plan" ? "Plan" : s === "list" ? "Shopping" : "Feedback"}
             </button>
           ))}
           <button
@@ -564,13 +575,15 @@ function PlanScreen({ plan, busy, onChangeEntry, onApprove, onCook, onShopping }
 }) {
   const [editing, setEditing] = useState<{ day: number; meal: PlanEntry["meal"] } | null>(null);
   const [draft, setDraft] = useState("");
+  const [editMode, setEditMode] = useState(false);
+  const canChange = plan.status === "draft" || editMode;
 
   const byDay = new Map<number, PlanEntry[]>();
   for (const e of plan.entries) byDay.set(e.day, [...(byDay.get(e.day) ?? []), e]);
   const days = [...byDay.keys()].sort((a, b) => a - b);
 
   return (
-    <ScreenShell eyebrow={`Weekly plan · ${plan.status === "approved" ? "Approved" : "Awaiting approval"}`} title={`Week of ${plan.weekStart}`} sub="Tap Change beside any meal. Nothing is final until you approve.">
+    <ScreenShell eyebrow={`Weekly plan · ${plan.status === "approved" ? "Approved" : "Awaiting approval"}`} title={`Week of ${plan.weekStart}`} sub={plan.status === "approved" && !editMode ? "Approved — tap Edit plan below to make changes." : "Tap Change beside any meal. Nothing is final until you approve."}>
       {days.map((d) => (
         <div key={d} className="mb-2.5 flex gap-3 rounded-2xl border border-line bg-surface p-3.5 dark:border-line-dark dark:bg-surface-dark">
           <div className="w-11 shrink-0 text-center">
@@ -581,7 +594,7 @@ function PlanScreen({ plan, busy, onChangeEntry, onApprove, onCook, onShopping }
               <div key={e.meal} className="flex items-baseline gap-2">
                 <span className="w-16 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-ink/45 dark:text-white/45">{MEAL_LABEL[e.meal]}</span>
                 <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{e.dish}</span>
-                {plan.status === "draft" && (
+                {canChange && (
                   <button onClick={() => { setEditing({ day: d, meal: e.meal }); setDraft(e.dish); }} className="shrink-0 rounded-lg border border-line px-2 py-0.5 text-[10.5px] font-medium text-ink/60 dark:border-line-dark dark:text-white/60">
                     Change
                   </button>
@@ -599,9 +612,14 @@ function PlanScreen({ plan, busy, onChangeEntry, onApprove, onCook, onShopping }
           <div className="mt-3"><PrimaryButton gold onClick={onApprove} disabled={busy}>{busy ? "Approving…" : "Approve plan ✓"}</PrimaryButton></div>
         </div>
       ) : (
-        <div className="mt-4 flex gap-2">
-          <div className="flex-1"><PrimaryButton onClick={onCook}>Cook message</PrimaryButton></div>
-          <div className="flex-1"><PrimaryButton onClick={onShopping}>Shopping list</PrimaryButton></div>
+        <div className="mt-4 space-y-2">
+          <button onClick={() => setEditMode((v) => !v)} className={`block w-full rounded-2xl border py-3 text-center text-[14px] font-semibold transition ${editMode ? "border-brand bg-brand/10 text-brand" : "border-line text-ink/70 dark:border-line-dark dark:text-white/70"}`}>
+            {editMode ? "Done editing ✓" : "Edit plan"}
+          </button>
+          <div className="flex gap-2">
+            <div className="flex-1"><PrimaryButton onClick={onCook}>Cook message</PrimaryButton></div>
+            <div className="flex-1"><PrimaryButton onClick={onShopping}>Shopping list</PrimaryButton></div>
+          </div>
         </div>
       )}
 
@@ -728,6 +746,125 @@ function ListScreen({ shoppingList, busy, onLoad, onBack }: {
         </>
       )}
       <GhostButton onClick={onBack}>← Back to plan</GhostButton>
+    </ScreenShell>
+  );
+}
+
+/* ─────────── feedback screen ─────────── */
+
+const VERDICTS = [
+  { v: "liked", label: "😋 Liked it" },
+  { v: "ok", label: "🙂 It was OK" },
+  { v: "disliked", label: "😕 Not a hit" },
+] as const;
+const LEFTOVER_OPTS = [
+  { v: "none", label: "None left" },
+  { v: "some", label: "Some left" },
+  { v: "lots", label: "Lots left" },
+] as const;
+
+function relativeDay(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  return `${days} days ago`;
+}
+
+function FeedbackScreen({ flash }: { flash: (m: string) => void }) {
+  const [history, setHistory] = useState<Feedback[] | null>(null);
+  const [meal, setMeal] = useState<"breakfast" | "lunch" | "dinner">("dinner");
+  const [cooked, setCooked] = useState<"cooked" | "skipped">("cooked");
+  const [verdict, setVerdict] = useState<"liked" | "ok" | "disliked" | undefined>(undefined);
+  const [leftovers, setLeftovers] = useState<"none" | "some" | "lots" | undefined>(undefined);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    const res = await fetch("/api/app/feedback");
+    const data = await res.json().catch(() => ({}));
+    setHistory(data.feedback ?? []);
+  }
+  useEffect(() => { load(); }, []);
+
+  async function submit() {
+    setBusy(true);
+    const res = await fetch("/api/app/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ meal, cooked, verdict: cooked === "cooked" ? verdict : undefined, leftovers: cooked === "cooked" ? leftovers : undefined, note: note.trim() || undefined }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (res.ok) {
+      flash(data.reply ?? "Noted ✓");
+      setVerdict(undefined);
+      setLeftovers(undefined);
+      setNote("");
+      load();
+    } else flash(data.error ?? "Couldn't save that");
+  }
+
+  return (
+    <ScreenShell eyebrow="Feedback" title="What's working, what's not" sub="A quick note after any meal teaches next week's plan.">
+      <div className="rounded-2xl border border-line bg-surface p-4 dark:border-line-dark dark:bg-surface-dark">
+        <label className="block text-[12.5px] font-semibold">Which meal?</label>
+        <div className="mt-1.5 flex flex-wrap gap-2">
+          {(["breakfast", "lunch", "dinner"] as const).map((m) => (
+            <Chip key={m} on={meal === m} onClick={() => setMeal(m)}>{MEAL_LABEL[m]}</Chip>
+          ))}
+        </div>
+
+        <label className="mt-3 block text-[12.5px] font-semibold">Did it happen?</label>
+        <div className="mt-1.5 flex flex-wrap gap-2">
+          <Chip on={cooked === "cooked"} onClick={() => setCooked("cooked")}>Cooked</Chip>
+          <Chip on={cooked === "skipped"} onClick={() => setCooked("skipped")}>Skipped</Chip>
+        </div>
+
+        {cooked === "cooked" && (
+          <>
+            <label className="mt-3 block text-[12.5px] font-semibold">How was it?</label>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {VERDICTS.map((o) => <Chip key={o.v} on={verdict === o.v} onClick={() => setVerdict(o.v)}>{o.label}</Chip>)}
+            </div>
+
+            <label className="mt-3 block text-[12.5px] font-semibold">Leftovers?</label>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {LEFTOVER_OPTS.map((o) => <Chip key={o.v} on={leftovers === o.v} onClick={() => setLeftovers(o.v)}>{o.label}</Chip>)}
+            </div>
+          </>
+        )}
+
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Anything else? (optional)"
+          className="mt-3 block w-full rounded-2xl border border-line bg-bg px-4 py-2.5 text-[14px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white"
+        />
+        <div className="mt-3"><PrimaryButton gold onClick={submit} disabled={busy}>{busy ? "Saving…" : "Share feedback"}</PrimaryButton></div>
+      </div>
+
+      <h2 className="mt-6 text-[11px] font-bold uppercase tracking-wider text-brand">Recent feedback</h2>
+      {history === null ? (
+        <ThinkingDots />
+      ) : history.length === 0 ? (
+        <p className="mt-2 text-[13.5px] text-ink/55 dark:text-white/55">Nothing shared yet — the first note above will show up here.</p>
+      ) : (
+        <div className="mt-2 space-y-2">
+          {history.map((f) => (
+            <div key={f.id} className="rounded-2xl border border-line bg-surface p-3.5 dark:border-line-dark dark:bg-surface-dark">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="min-w-0 truncate text-[14px] font-semibold">{f.dish}</span>
+                <span className="shrink-0 text-[11px] text-ink/45 dark:text-white/45">{relativeDay(f.createdAt)}</span>
+              </div>
+              <p className="mt-0.5 text-[12.5px] text-ink/60 dark:text-white/60">
+                {MEAL_LABEL[f.meal]} · {f.cooked === "skipped" ? "skipped" : VERDICTS.find((v) => v.v === f.verdict)?.label ?? "cooked"}
+                {f.leftovers && f.leftovers !== "none" ? ` · ${LEFTOVER_OPTS.find((l) => l.v === f.leftovers)?.label.toLowerCase()}` : ""}
+              </p>
+              {f.note && <p className="mt-1 text-[13px] italic text-ink/70 dark:text-white/70">“{f.note}”</p>}
+            </div>
+          ))}
+        </div>
+      )}
     </ScreenShell>
   );
 }

@@ -3,7 +3,7 @@
 
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { mealFeedback, type MealSlot } from "@/db/schema";
+import { mealFeedback, type MealFeedback, type MealSlot } from "@/db/schema";
 import { latestPlan, planEntries } from "@/db/kitchen-repo";
 import { logAudit } from "../audit";
 
@@ -63,6 +63,16 @@ export async function recordMealFeedback(args: {
         ? `Noted — I'll plan smaller portions of ${dish} next time.`
         : `Noted for ${dish} ✓ Next week's plan will use this.`;
   return { reply: ack };
+}
+
+// Raw history for the Feedback tab — what people are liking/missing, in order.
+export async function listFeedback(familyId: string, limit = 30): Promise<MealFeedback[]> {
+  return db
+    .select()
+    .from(mealFeedback)
+    .where(eq(mealFeedback.familyId, familyId))
+    .orderBy(desc(mealFeedback.createdAt))
+    .limit(limit);
 }
 
 // Compact digest for the planner prompt.
