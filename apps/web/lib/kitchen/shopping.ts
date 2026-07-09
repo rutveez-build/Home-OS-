@@ -23,14 +23,14 @@ const PANTRY_STAPLES = [
 export async function buildShoppingList(args: {
   familyId: string;
   userId: string;
-}): Promise<{ text: string } | { error: string }> {
+}): Promise<{ text: string; items: ShoppingItem[] } | { error: string }> {
   const plan = await latestPlan(args.familyId);
   if (!plan || plan.status !== "approved") {
     return { error: "No approved plan yet. Run `/plan week`, then `/plan approve` first." };
   }
 
   const existing = await latestShoppingList(plan.id);
-  if (existing) return { text: formatList(existing.items) };
+  if (existing) return { text: formatList(existing.items), items: existing.items };
 
   const entries = await planEntries(plan.id);
   const profile = await getProfile(args.familyId);
@@ -78,7 +78,7 @@ Return JSON: {"items":[{"name":"...","qty":"e.g. 500 g / 2 bunches","category":"
     detail: { itemCount: items.length },
   });
 
-  return { text: formatList(items) };
+  return { text: formatList(items), items };
 }
 
 function formatList(items: ShoppingItem[]): string {

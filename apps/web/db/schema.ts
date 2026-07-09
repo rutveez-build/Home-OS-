@@ -157,12 +157,14 @@ export const memories = pgTable(
 // Hard constraints for meal planning. Soft chat-extracted facts stay in
 // `memories`; these fields are the source of truth the planner obeys.
 export type MealScope = "d" | "ld" | "bld"; // dinner | lunch+dinner | all three
+export type HouseholdMember = { name: string; note?: string }; // display-only roster, not a login/account
 export const householdProfiles = pgTable("household_profiles", {
   id: uuid("id").defaultRandom().primaryKey(),
   familyId: uuid("family_id")
     .notNull()
     .unique()
     .references(() => families.id, { onDelete: "cascade" }),
+  members: jsonb("members").$type<HouseholdMember[]>().default([]).notNull(), // e.g. [{name:"Aarav", note:"8"}]
   diets: jsonb("diets").$type<string[]>().default([]).notNull(), // e.g. ["vegetarian", "veg-only tuesdays"]
   allergies: jsonb("allergies").$type<string[]>().default([]).notNull(), // hard constraints, never violated
   dislikes: jsonb("dislikes").$type<string[]>().default([]).notNull(),

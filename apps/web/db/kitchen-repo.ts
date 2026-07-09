@@ -8,6 +8,7 @@ import {
   mealPlans,
   shoppingLists,
   staff,
+  type HouseholdMember,
   type HouseholdProfile,
   type MealPlan,
   type MealPlanEntry,
@@ -30,6 +31,7 @@ export async function getProfile(familyId: string): Promise<HouseholdProfile | n
 export async function upsertProfile(
   familyId: string,
   patch: Partial<{
+    members: HouseholdMember[];
     diets: string[];
     allergies: string[];
     dislikes: string[];
