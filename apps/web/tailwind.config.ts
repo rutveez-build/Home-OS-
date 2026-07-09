@@ -5,19 +5,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: { DEFAULT: "#F5F1EA", dark: "#0F1114" },
-        surface: { DEFAULT: "#FFFFFF", dark: "#1A1D22" },
-        ink: "#15171A",
-        // Default brand is a deep forest. Override via CSS variables to rebrand
-        // without touching components — see globals.css.
+        bg: { DEFAULT: "#F2EEE1", dark: "#17130B" },
+        surface: { DEFAULT: "#FFFDF7", dark: "#211B10" },
+        ink: "#241C10",
+        // Default brand is a deep turmeric. Override via CSS variables to
+        // rebrand without touching components — see globals.css.
         brand: {
           DEFAULT: "rgb(var(--brand) / <alpha-value>)",
           soft: "rgb(var(--brand-soft) / <alpha-value>)",
           deep: "rgb(var(--brand-deep) / <alpha-value>)",
         },
-        accent: "#C9A26C",
-        coral: "#CB6D54",
-        line: { DEFAULT: "#E8E0D2", dark: "#262A33" },
+        accent: "#5B7052",
+        coral: "#A8481F",
+        line: { DEFAULT: "#E1D8C2", dark: "#322A1A" },
       },
       fontFamily: {
         sans: [
