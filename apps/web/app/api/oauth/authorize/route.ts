@@ -51,6 +51,7 @@ function page(title: string, body: string): NextResponse {
   .error { background: #fdeceb; color: #b3261e; padding: 10px 12px; border-radius: 10px; font-size: 13px; margin-bottom: 14px; }
   .perms { font-size: 13px; color: #444; margin: 14px 0; padding-left: 18px; }
   .perms li { margin-bottom: 4px; }
+  .redirect-note { font-size: 12px; color: #888; margin-top: -6px; }
 </style></head>
 <body><div class="card">${body}</div></body></html>`;
   return new NextResponse(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
@@ -88,11 +89,17 @@ function renderLogin(p: OAuthParams, clientName: string, error?: string): NextRe
 }
 
 function renderConsent(p: OAuthParams, clientName: string, familyName: string): NextResponse {
+  // The redirect host is the one fact here an attacker can't spoof (it was
+  // checked against what this client_id actually registered) — shown
+  // separately from the self-asserted display name so a mismatch is visible
+  // ("ChatGPT" claiming it'll send you to some-other-domain.example is the tell).
+  const redirectHost = new URL(p.redirectUri).host;
   return page(
     "Connect",
     `<h1>${escapeHtml(clientName)} wants to connect</h1>
      <p>This will let it act on your <strong>${escapeHtml(familyName)}</strong> household on ${escapeHtml(brand.name)} —
      always through the same approval gates as the web app.</p>
+     <p class="redirect-note">After you approve, you'll be sent back to: <strong>${escapeHtml(redirectHost)}</strong> — make sure that's really where ${escapeHtml(clientName)} runs before continuing.</p>
      <ul class="perms">
        <li>Read household details, meal plan, shopping list, feedback</li>
        <li>Update preferences and draft meal plans</li>
@@ -137,11 +144,15 @@ async function validate(params: URLSearchParams): Promise<{ ok: true; params: OA
   const codeChallengeMethod = params.get("code_challenge_method") ?? "";
 
   if (responseType !== "code" || !codeChallenge || codeChallengeMethod !== "S256") {
-    // Now that redirect_uri is confirmed registered, an error redirect is safe.
-    const back = new URL(redirectUri);
-    back.searchParams.set("error", responseType !== "code" ? "unsupported_response_type" : "invalid_request");
-    if (state) back.searchParams.set("state", state);
-    return { ok: false, res: NextResponse.redirect(back.toString(), 302) };
+    // Rendered, not redirected: "redirect_uri is registered" only means someone
+    // ran /register with it, not that it's trustworthy (registration is
+    // deliberately open, same as every MCP server ChatGPT/Claude auto-connect
+    // to). A live redirect here would turn our own domain into an open
+    // redirector for anyone who self-registers an arbitrary https URL and
+    // sends a malformed request — no session or consent needed to trigger it.
+    // A spec-correct client never actually hits this branch, so there's no
+    // real cost to erroring inline instead.
+    return { ok: false, res: renderError("This connector sent a request Home OS doesn't recognize (bad response_type or PKCE parameters).") };
   }
 
   return {

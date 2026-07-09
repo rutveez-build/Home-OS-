@@ -39,20 +39,21 @@ export type ConsumedCode = { clientId: string; familyId: string; userId: string 
 // Returns null for ANY failure (expired, already used, wrong client/redirect,
 // bad PKCE verifier) — deliberately no distinguishing signal back to the
 // caller beyond "invalid_grant", so a bad guess can't be used as an oracle.
+//
+// Validate-then-claim, in that order: an attacker who has a code but not the
+// right verifier (or client_id, or redirect_uri) must not be able to burn it
+// for the legitimate holder just by trying and failing once. Only a fully
+// valid exchange performs the atomic claim — which still exists, to stop two
+// concurrent *valid* exchanges of the same code both succeeding.
 export async function consumeCode(args: {
   code: string;
   clientId: string;
   redirectUri: string;
   codeVerifier: string;
 }): Promise<ConsumedCode | null> {
-  // Atomic claim: the UPDATE only matches an unused row, so two concurrent
-  // exchanges of the same code can't both succeed.
-  const [row] = await db
-    .update(oauthAuthCodes)
-    .set({ usedAt: new Date() })
-    .where(and(eq(oauthAuthCodes.code, args.code), isNull(oauthAuthCodes.usedAt)))
-    .returning();
+  const row = await db.query.oauthAuthCodes.findFirst({ where: eq(oauthAuthCodes.code, args.code) });
   if (!row) return null;
+  if (row.usedAt) return null;
   if (row.expiresAt.getTime() < Date.now()) return null;
   if (row.clientId !== args.clientId) return null;
   if (row.redirectUri !== args.redirectUri) return null;
@@ -62,5 +63,12 @@ export async function consumeCode(args: {
   const b = Buffer.from(row.codeChallenge);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
 
-  return { clientId: row.clientId, familyId: row.familyId, userId: row.userId };
+  const [claimed] = await db
+    .update(oauthAuthCodes)
+    .set({ usedAt: new Date() })
+    .where(and(eq(oauthAuthCodes.code, args.code), isNull(oauthAuthCodes.usedAt)))
+    .returning();
+  if (!claimed) return null; // lost a race to a concurrent valid exchange
+
+  return { clientId: claimed.clientId, familyId: claimed.familyId, userId: claimed.userId };
 }
