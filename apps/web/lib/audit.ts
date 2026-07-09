@@ -12,7 +12,7 @@ export async function logAudit(args: {
   action: string; // dot-namespaced: 'plan.approved', 'cook_message.sent', 'list.exported'
   subjectType?: string;
   subjectId?: string;
-  channel?: "web" | "whatsapp" | "system";
+  channel?: "web" | "whatsapp" | "system" | "assistant";
   detail?: Record<string, unknown>;
 }): Promise<void> {
   try {
