@@ -876,11 +876,22 @@ function FeedbackScreen({ flash }: { flash: (m: string) => void }) {
 
 /* ─────────── connect screen (MCP tokens) ─────────── */
 
+// Which client tab is open in the post-mint "how do I connect this" panel —
+// filled in with the real token/URL so there's nothing to copy from elsewhere.
+const CONNECT_CLIENTS = [
+  { key: "claude-cli", label: "Claude Code" },
+  { key: "codex", label: "Codex CLI" },
+  { key: "claude-web", label: "claude.ai" },
+  { key: "chatgpt", label: "ChatGPT" },
+] as const;
+type ConnectClientKey = (typeof CONNECT_CLIENTS)[number]["key"];
+
 function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: () => void }) {
   const [tokens, setTokens] = useState<TokenMeta[] | null>(null);
   const [label, setLabel] = useState("");
   const [minted, setMinted] = useState<{ token: string; label: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [connectClient, setConnectClient] = useState<ConnectClientKey>("claude-cli");
   const mcpUrl = typeof window !== "undefined" ? `${window.location.origin}/api/mcp` : "/api/mcp";
 
   async function load() {
@@ -936,6 +947,79 @@ function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: 
           <p className="mt-1 text-[12px] text-ink/60 dark:text-white/70">Copy it now. It can't be shown again — you'd need to create a new one.</p>
           <div className="mt-2 break-all rounded-xl bg-surface px-3 py-2 font-mono text-[12px] dark:bg-surface-dark">{minted.token}</div>
           <button onClick={() => copy(minted.token)} className="mt-2 w-full rounded-xl bg-brand py-2 text-[13px] font-semibold text-white">Copy token</button>
+
+          <div className="mt-4 border-t border-line/60 pt-3 dark:border-line-dark/60">
+            <p className="text-[12.5px] font-semibold">Connect it to</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {CONNECT_CLIENTS.map((c) => (
+                <button
+                  key={c.key}
+                  onClick={() => setConnectClient(c.key)}
+                  className={`rounded-lg px-2.5 py-1 text-[11.5px] font-medium ${
+                    connectClient === c.key ? "bg-brand text-white" : "border border-line dark:border-line-dark"
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+
+            {connectClient === "claude-cli" && (
+              <div className="mt-2.5">
+                <p className="text-[12px] text-ink/60 dark:text-white/70">Run this in a terminal:</p>
+                <pre className="mt-1 overflow-x-auto rounded-xl bg-surface px-3 py-2 font-mono text-[11.5px] dark:bg-surface-dark">
+{`claude mcp add home-os --url ${mcpUrl} \\\n  --header "Authorization: Bearer ${minted.token}"`}
+                </pre>
+                <button
+                  onClick={() => copy(`claude mcp add home-os --url ${mcpUrl} --header "Authorization: Bearer ${minted.token}"`)}
+                  className="mt-1.5 rounded-lg border border-line px-2.5 py-1 text-[11.5px] font-medium dark:border-line-dark"
+                >
+                  Copy command
+                </button>
+              </div>
+            )}
+
+            {connectClient === "codex" && (
+              <div className="mt-2.5">
+                <p className="text-[12px] text-ink/60 dark:text-white/70">
+                  Add this to <code className="font-mono">~/.codex/config.toml</code>:
+                </p>
+                <pre className="mt-1 overflow-x-auto rounded-xl bg-surface px-3 py-2 font-mono text-[11.5px] dark:bg-surface-dark">
+{`[mcp_servers.home-os]\nurl = "${mcpUrl}"\nbearer_token = "${minted.token}"`}
+                </pre>
+                <button
+                  onClick={() => copy(`[mcp_servers.home-os]\nurl = "${mcpUrl}"\nbearer_token = "${minted.token}"`)}
+                  className="mt-1.5 rounded-lg border border-line px-2.5 py-1 text-[11.5px] font-medium dark:border-line-dark"
+                >
+                  Copy block
+                </button>
+              </div>
+            )}
+
+            {connectClient === "claude-web" && (
+              <ol className="mt-2.5 list-decimal space-y-1 pl-4 text-[12px] text-ink/70 dark:text-white/75">
+                <li>On claude.ai, go to <b>Settings → Connectors → Add custom connector</b>.</li>
+                <li>Paste the Server URL shown above.</li>
+                <li>If it asks for an auth method, choose <b>Bearer token / API key</b> and paste the token above.</li>
+                <li>Save — Claude can now use Home OS in any chat.</li>
+              </ol>
+            )}
+
+            {connectClient === "chatgpt" && (
+              <ol className="mt-2.5 list-decimal space-y-1 pl-4 text-[12px] text-ink/70 dark:text-white/75">
+                <li>In ChatGPT, go to <b>Settings → Connectors</b> (turn on Developer Mode first if you don't see "Add connector").</li>
+                <li>Paste the Server URL shown above.</li>
+                <li>Choose <b>API key / Bearer token</b> auth and paste the token above.</li>
+                <li>Save — ChatGPT can now use Home OS in any chat.</li>
+              </ol>
+            )}
+
+            {(connectClient === "claude-web" || connectClient === "chatgpt") && (
+              <p className="mt-2 text-[11px] text-ink/45 dark:text-white/45">
+                Only see an OAuth sign-in, no token field? Use the Claude Code or Codex CLI tabs instead — those definitely accept this token.
+              </p>
+            )}
+          </div>
         </div>
       )}
 
