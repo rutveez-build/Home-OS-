@@ -17,6 +17,7 @@ import {
 import { WizardBar, FamilyStep, PrefsStep, CookStep } from "./stream/Wizard";
 import { HomeFeed } from "./stream/HomeFeed";
 import { PlanScreen } from "./stream/PlanScreen";
+import { HandoffScreen } from "./stream/HandoffScreen";
 
 type Member = { name: string; note?: string };
 type Profile = {
@@ -342,62 +343,6 @@ function ThinkingDots() {
       <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-current [animation-delay:160ms]" />
       <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-current [animation-delay:320ms]" />
     </span>
-  );
-}
-
-/* ─────────── cook handoff screen ─────────── */
-
-function HandoffScreen({ cook, busy, flash, onBack, onNext }: {
-  cook: Cook; busy: boolean; flash: (m: string) => void; onBack: () => void; onNext: () => void;
-}) {
-  const [draft, setDraft] = useState<{ text: string; cookName: string; cookPhone: string | null } | null>(null);
-  const [sent, setSent] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/app/cook-message")
-      .then((r) => r.json())
-      .then((d) => { if (d.draft) setDraft(d.draft); else flash(d.error ?? "Couldn't draft the message"); })
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function send() {
-    const res = await fetch("/api/app/cook-message", { method: "POST" });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data.sent) { setSent(true); flash(`Sent to ${data.cookName} ✓`); }
-    else flash(data.error ?? "Couldn't send — copy the message instead");
-  }
-
-  function copy() {
-    if (draft) navigator.clipboard?.writeText(draft.text).catch(() => {});
-    flash("Copied — paste it into WhatsApp");
-  }
-
-  return (
-    <ScreenShell eyebrow="Daily handoff" title={`Message for ${cook?.name ?? "your cook"}`} sub="Review, then send or copy it yourself.">
-      {loading ? (
-        <ThinkingDots />
-      ) : draft ? (
-        <>
-          <div className="rounded-2xl border border-line bg-surface p-4 text-[14px] leading-relaxed dark:border-line-dark dark:bg-surface-dark">
-            {draft.text}
-          </div>
-          {draft.cookPhone && !sent ? (
-            <div className="mt-4"><PrimaryButton gold onClick={send} disabled={busy}>Approve &amp; send to cook ✓</PrimaryButton></div>
-          ) : sent ? (
-            <div className="mt-4 rounded-xl bg-accent/15 px-3 py-2.5 text-[13.5px] font-medium text-accent">Sent on WhatsApp · logged to the audit trail</div>
-          ) : null}
-          <GhostButton onClick={copy}>Copy message</GhostButton>
-        </>
-      ) : (
-        <p className="text-[14px] text-ink/60 dark:text-white/60">No draft available yet.</p>
-      )}
-      <div className="mt-6 flex gap-2">
-        <button onClick={onBack} className="flex-1 rounded-2xl border border-line py-3 text-[14px] font-medium dark:border-line-dark">← Back to plan</button>
-        <button onClick={onNext} className="flex-1 rounded-2xl border border-line py-3 text-[14px] font-medium dark:border-line-dark">Shopping list →</button>
-      </div>
-    </ScreenShell>
   );
 }
 
