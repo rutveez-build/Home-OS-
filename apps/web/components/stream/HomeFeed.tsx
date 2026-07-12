@@ -1,11 +1,15 @@
 "use client";
 
-// Home, Kitchen Stream style — mirrors the "Home: Flexible Management" mock:
-// greeting, a prominent meal-plan status card with a banner strip, a feedback
-// prompt card, quick-entry grid (chat + status), and management rows.
+// Home — built 1:1 against the "Home: Flexible Management" mock: greeting,
+// border-top plan status card with primary + secondary actions, feedback
+// prompt with Not-now/Share buttons, the ask-anything + pantry-status grid,
+// the Home Management "Update Home Setup" row, the connectivity pill, and
+// the ambient state panel. Only the mock's stock photos are replaced with
+// icon tiles (those assets are Stitch demo images, not ours to ship).
 
+import { useState } from "react";
 import { Card, CardBanner, Icon, PrimaryButton, SecondaryButton, SectionLabel } from "./kit";
-import { ExpiringSoonCard } from "./InventoryScreen";
+import { PantryStatusCard } from "./InventoryScreen";
 import type { Plan } from "./types";
 
 function greeting(): string {
@@ -27,6 +31,7 @@ export function HomeFeed({
   onOpenConnect,
   onOpenFeedback,
   onOpenInventory,
+  onOpenHub,
 }: {
   userName: string;
   familyName: string;
@@ -39,49 +44,59 @@ export function HomeFeed({
   onOpenConnect: () => void;
   onOpenFeedback: () => void;
   onOpenInventory: () => void;
+  onOpenHub: () => void;
 }) {
+  const [feedbackDismissed, setFeedbackDismissed] = useState(false);
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-5">
+      {/* Greeting */}
       <section className="px-1">
         <h2 className="text-xl font-semibold">{greeting()}, {userName}!</h2>
         <p className="text-sm text-stream-mute">{familyName}</p>
       </section>
 
-      {/* Weekly plan status — the screen's centerpiece */}
+      {/* Primary status card — banner strip + border-top accent, per mock */}
       <Card className="overflow-hidden border-t-4 border-t-stream-primary">
         <CardBanner icon="calendar_today" label="Weekly Meal Plan" />
-        <div className="flex flex-col gap-4 p-5">
+        <div className="flex flex-col gap-4 p-6">
           {plan?.status === "approved" ? (
             <>
-              <div>
+              <div className="flex flex-col gap-2">
                 <h3 className="text-xl font-semibold">This week&apos;s plan is approved ✓</h3>
-                <p className="mt-1 text-sm leading-relaxed text-stream-mute">
+                <p className="text-sm leading-relaxed text-stream-mute">
                   Week of {plan.weekStart}. The cook message and shopping list are unlocked.
                 </p>
               </div>
               <PrimaryButton icon="restaurant_menu" onClick={onOpenPlan}>
                 View plan
               </PrimaryButton>
+              <SecondaryButton icon="edit_calendar" className="-mt-2" onClick={onOpenPlan}>
+                Change plan
+              </SecondaryButton>
             </>
           ) : plan?.status === "draft" ? (
             <>
-              <div>
+              <div className="flex flex-col gap-2">
                 <h3 className="text-xl font-semibold">A draft is waiting for you.</h3>
-                <p className="mt-1 text-sm leading-relaxed text-stream-mute">
+                <p className="text-sm leading-relaxed text-stream-mute">
                   Review the week, change any meal, and approve when it looks right.
                 </p>
               </div>
               <PrimaryButton icon="fact_check" onClick={onOpenPlan}>
                 Review &amp; approve
               </PrimaryButton>
+              <SecondaryButton icon="edit_calendar" className="-mt-2" onClick={onOpenPlan}>
+                Change plan
+              </SecondaryButton>
             </>
           ) : (
             <>
-              <div>
+              <div className="flex flex-col gap-2">
                 <h3 className="text-xl font-semibold">No plan yet for this week.</h3>
-                <p className="mt-1 text-sm leading-relaxed text-stream-mute">
-                  Your kitchen is quiet. I&apos;ll draft the week from your household profile —
-                  diets, allergies, and everything else you told me.
+                <p className="text-sm leading-relaxed text-stream-mute">
+                  Your kitchen is quiet. Start a conversation with {familyName} to organize your
+                  meals, generate shopping lists, and coordinate with the family.
                 </p>
               </div>
               <PrimaryButton icon="restaurant_menu" onClick={onAsk} disabled={busy}>
@@ -92,48 +107,79 @@ export function HomeFeed({
         </div>
       </Card>
 
-      <ExpiringSoonCard onOpenInventory={onOpenInventory} />
-
-      {/* Feedback prompt */}
-      <Card className="flex flex-col gap-4 p-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-stream-accent/10 text-stream-primary">
-            <Icon name="star" />
+      {/* Feedback prompt — Not now / Share, per mock */}
+      {!feedbackDismissed && (
+        <Card className="flex flex-col gap-4 p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-stream-accent/10 text-stream-primary">
+              <Icon name="star" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold">How was your last meal?</h4>
+              <p className="text-[13px] text-stream-mute">
+                Rate your last dinner to improve future suggestions.
+              </p>
+            </div>
           </div>
-          <div className="flex-1">
-            <h4 className="text-sm font-semibold">How was your last meal?</h4>
+          <div className="flex gap-2">
+            <SecondaryButton className="flex-1 !py-2" onClick={() => setFeedbackDismissed(true)}>
+              Not now
+            </SecondaryButton>
+            <PrimaryButton className="flex-1 !py-2" onClick={onOpenFeedback}>
+              Share feedback
+            </PrimaryButton>
+          </div>
+        </Card>
+      )}
+
+      {/* Ask-anything + pantry status grid, per mock */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Card onClick={onOpenChat} className="group flex w-full flex-col gap-3 p-5 text-left">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-stream-primary/10 text-stream-primary">
+            <Icon name="chat" />
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold">Ask me anything else</h4>
             <p className="text-[13px] text-stream-mute">
-              Rating meals teaches me what to plan more (and less) of.
+              Check pantry stock, dietary notes, or meal history.
             </p>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <SecondaryButton className="flex-1 !py-2" onClick={onOpenFeedback}>
-            Share feedback
-          </SecondaryButton>
-        </div>
-      </Card>
+          <Icon
+            name="arrow_forward"
+            className="self-end text-sm text-stream-mute transition-transform group-hover:translate-x-1"
+          />
+        </Card>
+        <PantryStatusCard onOpenInventory={onOpenInventory} />
+      </div>
 
-      {/* Quick entry */}
-      <Card onClick={onOpenChat} className="group flex flex-col gap-3 p-5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-stream-primary/10 text-stream-primary">
-          <Icon name="chat" />
-        </div>
-        <div>
-          <h4 className="text-sm font-semibold">Ask me anything else</h4>
-          <p className="text-[13px] text-stream-mute">
-            Pantry questions, dietary notes, meal history — or just talk it through.
-          </p>
-        </div>
-        <Icon
-          name="arrow_forward"
-          className="self-end text-sm text-stream-mute transition-transform group-hover:translate-x-1"
-        />
-      </Card>
-
+      {/* Home Management, per mock */}
       {canManage && (
         <section className="mt-2 border-t border-stream-line pt-5">
-          <SectionLabel>Advanced connectivity</SectionLabel>
+          <SectionLabel>Home Management</SectionLabel>
+          <Card onClick={onOpenHub} className="group mt-3 flex w-full items-center justify-between p-4 text-left">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-stream-accent/10 text-stream-primary">
+                <Icon name="manage_accounts" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold">Update Home Setup</h4>
+                <p className="text-[13px] text-stream-mute">
+                  Manage members, roles, and kitchen preferences.
+                </p>
+              </div>
+            </div>
+            <Icon
+              name="arrow_forward"
+              className="text-stream-mute transition-transform group-hover:translate-x-1"
+            />
+          </Card>
+        </section>
+      )}
+
+      {/* Advanced Connectivity, per mock */}
+      {canManage && (
+        <section className="mt-2 border-t border-stream-line pt-5">
+          <SectionLabel>Advanced Connectivity</SectionLabel>
           <button
             onClick={onOpenConnect}
             className="mt-3 flex items-center gap-2 rounded-full border border-stream-line bg-stream-surface px-4 py-2 text-[13px] font-medium shadow-card transition-colors hover:bg-stream-primary/5"
@@ -143,6 +189,17 @@ export function HomeFeed({
           </button>
         </section>
       )}
+
+      {/* Ambient state panel, per mock */}
+      <div className="relative mt-4 h-24 w-full overflow-hidden rounded-xl border border-stream-line bg-stream-surface opacity-70 shadow-card">
+        <div className="absolute inset-0 bg-gradient-to-t from-stream-bg via-transparent to-transparent" />
+        <div className="absolute bottom-4 left-4 flex items-center gap-2">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-stream-accent" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-stream-mute">
+            Kitchen ambient state: Calm
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

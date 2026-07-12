@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { brand } from "@/lib/brand";
-import { Bubble, Icon, SystemNote } from "./stream/kit";
+import { Bubble, Icon, SystemNote, ThemeToggle } from "./stream/kit";
 
 type Props = {
   // email set → account session already established by /api/auth
@@ -63,7 +63,8 @@ export function Onboarding({ onDone }: Props) {
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
           <Icon name="cottage" fill className="text-[18px]" />
         </span>
-        <h1 className="text-[18px] font-semibold">{brand.name}</h1>
+        <h1 className="flex-1 text-[18px] font-semibold">{brand.name}</h1>
+        <ThemeToggle />
       </header>
 
       <div className="mx-auto flex w-full max-w-[600px] flex-col gap-2 px-4 pb-44 pt-20">

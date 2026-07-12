@@ -10,6 +10,7 @@ import { brand } from "@/lib/brand";
 import {
   TopBar as StreamTopBar,
   TopBarAction,
+  ThemeToggle,
   BottomNav,
   type NavKey,
 } from "./stream/kit";
@@ -145,6 +146,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
           title={family?.name ?? brand.name}
           actions={
             <>
+              <ThemeToggle />
               <TopBarAction icon="forum" label="Assistant chat" onClick={() => setScreen("freechat")} />
               <TopBarAction icon="settings" label="Household settings" onClick={() => setScreen("hub")} />
             </>
@@ -204,6 +206,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
             canManage={["owner", "parent", "partner"].includes(family?.role ?? "")}
             onOpenFeedback={() => setScreen("feedback")}
             onOpenInventory={() => setScreen("inventory")}
+            onOpenHub={() => setScreen("hub")}
             onAsk={async () => {
               setBusy(true);
               const res = await api<{ plan: Plan }>("/api/app/plan", { method: "POST" });

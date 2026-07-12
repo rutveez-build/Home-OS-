@@ -74,6 +74,32 @@ export function TopBar({
   );
 }
 
+/** Manual light/dark switch — the user designed both verticals in Stitch.
+ * Defaults to the OS scheme; an explicit choice persists in localStorage. */
+export function ThemeToggle() {
+  function current(): "light" | "dark" {
+    const set = document.documentElement.dataset.theme;
+    if (set === "light" || set === "dark") return set;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  return (
+    <button
+      aria-label="Toggle light/dark theme"
+      title="Light / dark"
+      onClick={() => {
+        const next = current() === "dark" ? "light" : "dark";
+        document.documentElement.dataset.theme = next;
+        try {
+          localStorage.setItem("theme", next);
+        } catch {}
+      }}
+      className="rounded-full p-2 transition-colors hover:bg-black/10"
+    >
+      <Icon name="routine" />
+    </button>
+  );
+}
+
 export function TopBarAction({
   icon,
   label,

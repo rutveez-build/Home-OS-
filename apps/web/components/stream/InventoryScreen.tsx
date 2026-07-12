@@ -222,6 +222,69 @@ export function InventoryScreen({ flash }: { flash: (m: string) => void }) {
   );
 }
 
+/** "Pantry Synced" status card from the Home mock — item count, last update,
+ * and an expiring warning when relevant. Always renders (mock shows it). */
+export function PantryStatusCard({ onOpenInventory }: { onOpenInventory: () => void }) {
+  const [items, setItems] = useState<InventoryRow[] | null>(null);
+
+  useEffect(() => {
+    fetch("/api/app/inventory")
+      .then((r) => r.json())
+      .then((d) => setItems((d.items ?? []) as InventoryRow[]))
+      .catch(() => setItems([]));
+  }, []);
+
+  const expiring = (items ?? []).filter((i) => {
+    const d = daysToExpiry(i.expiryDate);
+    return d !== null && d <= 3;
+  });
+  const latest = (items ?? []).reduce<string | null>(
+    (acc, i) => (!acc || i.updatedAt > acc ? i.updatedAt : acc),
+    null
+  );
+
+  return (
+    <Card onClick={onOpenInventory} className="w-full overflow-hidden text-left">
+      <div
+        className={`flex items-center justify-between px-4 py-2 text-[11px] font-bold uppercase tracking-wider ${
+          expiring.length ? "bg-stream-danger/10 text-stream-danger" : "bg-stream-accent/10 text-stream-primary"
+        }`}
+      >
+        <span className="flex items-center gap-2">
+          <Icon name={expiring.length ? "timer" : "check_circle"} fill className="text-sm" />
+          {expiring.length ? `${expiring.length} expiring soon` : "Pantry synced"}
+        </span>
+        <Icon name="inventory_2" className="text-sm" />
+      </div>
+      <div className="p-4">
+        <p className="text-sm font-semibold">
+          {items === null
+            ? "Checking the pantry…"
+            : items.length === 0
+              ? "Nothing tracked yet."
+              : expiring.length
+                ? expiring.slice(0, 3).map((i) => i.name).join(", ")
+                : "All items ready."}
+        </p>
+        <p className="text-[13px] text-stream-mute">
+          {items === null
+            ? " "
+            : `${items.length} items tracked${latest ? ` · updated ${relativeUpdate(latest)}` : ""}`}
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+function relativeUpdate(iso: string): string {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 60) return mins <= 1 ? "just now" : `${mins} min ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
 /** Compact expiring-soon widget for the Home feed. Renders nothing when clear. */
 export function ExpiringSoonCard({ onOpenInventory }: { onOpenInventory: () => void }) {
   const [expiring, setExpiring] = useState<InventoryRow[]>([]);
