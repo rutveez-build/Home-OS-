@@ -7,7 +7,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { brand } from "@/lib/brand";
-import { Logo } from "./Logo";
+import {
+  TopBar as StreamTopBar,
+  TopBarAction,
+  BottomNav,
+  EmptyState,
+  type NavKey,
+} from "./stream/kit";
 
 type Member = { name: string; note?: string };
 type Profile = {
@@ -41,7 +47,7 @@ type Feedback = {
 
 type Family = { id: string; name: string; role: string } | null;
 
-type Screen = "loading" | "wizard-family" | "wizard-prefs" | "wizard-cook" | "home" | "plan" | "handoff" | "list" | "feedback" | "purchases" | "connect" | "freechat";
+type Screen = "loading" | "wizard-family" | "wizard-prefs" | "wizard-cook" | "home" | "plan" | "handoff" | "list" | "feedback" | "purchases" | "inventory" | "connect" | "freechat";
 type TokenMeta = { id: string; label: string; createdAt: string; lastUsedAt: string | null; revokedAt: string | null };
 
 type PurchaseItem = { id: string; name: string; quantity: string | null; unitPrice: string | null; lineTotal: string | null };
@@ -109,15 +115,36 @@ export default function HouseholdApp({ userName }: { userName: string }) {
     setTimeout(() => setNotice((n) => (n === msg ? "" : n)), 3200);
   }
 
-  if (screen === "loading") return <div className="flex h-dvh items-center justify-center bg-bg dark:bg-bg-dark"><ThinkingDots /></div>;
+  if (screen === "loading") return <div className="flex h-dvh items-center justify-center bg-stream-bg"><ThinkingDots /></div>;
+
+  const inWizard = screen.startsWith("wizard");
+  const navActive: NavKey =
+    screen === "plan" || screen === "handoff" || screen === "list"
+      ? "plan"
+      : screen === "purchases" || screen === "feedback" || screen === "inventory"
+        ? screen
+        : "home";
 
   return (
-    <div className="flex h-dvh flex-col bg-bg text-ink dark:bg-bg-dark dark:text-white">
-      <TopBar family={family} screen={screen} setScreen={setScreen} />
+    <div className="flex h-dvh flex-col bg-stream-bg text-stream-ink">
+      <StreamTopBar
+        title={family?.name ?? brand.name}
+        subtitle={inWizard ? "Setting up your household" : undefined}
+        actions={
+          !inWizard ? (
+            <>
+              <TopBarAction icon="forum" label="Assistant chat" onClick={() => setScreen("freechat")} />
+              <TopBarAction icon="settings" label="Household settings" onClick={() => setScreen("connect")} />
+            </>
+          ) : undefined
+        }
+      />
       {notice && (
-        <div className="mx-3 mt-2 rounded-xl bg-accent/15 px-3 py-2 text-[13px] font-medium text-accent">{notice}</div>
+        <div className="fixed inset-x-0 top-16 z-50 mx-auto w-fit max-w-[90%] rounded-full bg-stream-primary px-4 py-2 text-[13px] font-medium text-stream-on-primary shadow-lg">
+          {notice}
+        </div>
       )}
-      <div className="flex-1 overflow-y-auto">
+      <div className={`flex-1 overflow-y-auto pt-14 ${inWizard ? "" : "pb-14"}`}>
         {screen === "wizard-family" && (
           <FamilyStep
             onDone={(fam) => {
@@ -231,50 +258,28 @@ export default function HouseholdApp({ userName }: { userName: string }) {
         )}
         {screen === "feedback" && <FeedbackScreen flash={flash} />}
         {screen === "purchases" && <PurchasesScreen flash={flash} />}
+        {screen === "inventory" && (
+          <EmptyState
+            icon="inventory_2"
+            title="Kitchen inventory is on its way"
+            body="Pantry tracking with expiring-soon alerts lands here shortly."
+          />
+        )}
         {screen === "freechat" && <FreeChat onBack={() => setScreen(plan ? "plan" : "home")} />}
       </div>
+      {!inWizard && (
+        <BottomNav
+          active={navActive}
+          onNavigate={(k) => setScreen(k === "plan" && !plan ? "home" : k)}
+        />
+      )}
     </div>
   );
 }
 
 /* ─────────── shared bits ─────────── */
 
-function TopBar({ family, screen, setScreen }: { family: Family; screen: Screen; setScreen: (s: Screen) => void }) {
-  const inWizard = screen.startsWith("wizard");
-  return (
-    <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-line/60 bg-bg/85 px-3 py-2.5 backdrop-blur dark:border-line-dark/60 dark:bg-bg-dark/85">
-      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand text-white">
-        <Logo size={16} />
-      </span>
-      <div className="flex min-w-0 flex-1 items-center gap-1.5">
-        <span className="truncate text-[15px] font-semibold tracking-tight">{family?.name ?? brand.name}</span>
-      </div>
-      {!inWizard && (
-        <nav className="flex gap-0.5 text-[12px]">
-          {(["home", "plan", "list", "purchases", "feedback"] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setScreen(s)}
-              className={`rounded-full px-2 py-1 font-medium transition ${
-                screen === s ? "bg-brand/10 text-brand" : "text-ink/50 dark:text-white/50"
-              }`}
-            >
-              {s === "home" ? "Home" : s === "plan" ? "Plan" : s === "list" ? "Shopping" : s === "purchases" ? "Purchases" : "Feedback"}
-            </button>
-          ))}
-          <button
-            onClick={() => setScreen("freechat")}
-            className={`rounded-full px-2.5 py-1 font-medium transition ${
-              screen === "freechat" ? "bg-brand/10 text-brand" : "text-ink/50 dark:text-white/50"
-            }`}
-          >
-            Chat
-          </button>
-        </nav>
-      )}
-    </header>
-  );
-}
+/* Old cream TopBar deleted — chrome now comes from components/stream/kit. */
 
 function Chip({ on, children, onClick }: { on: boolean; children: React.ReactNode; onClick: () => void }) {
   return (

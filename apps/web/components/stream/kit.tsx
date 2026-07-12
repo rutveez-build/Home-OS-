@@ -95,14 +95,16 @@ export function TopBarAction({
   );
 }
 
-export type NavKey = "home" | "plan" | "shopping" | "purchases" | "more";
+// Destinations mirror the approved Stitch mock's bottom nav exactly.
+// Shopping is reached from Plan, the Hub from the top bar, Chat from Home.
+export type NavKey = "home" | "inventory" | "plan" | "purchases" | "feedback";
 
 const NAV_ITEMS: { key: NavKey; icon: string; label: string }[] = [
   { key: "home", icon: "chat", label: "Home" },
+  { key: "inventory", icon: "inventory_2", label: "Inventory" },
   { key: "plan", icon: "restaurant_menu", label: "Plan" },
-  { key: "shopping", icon: "shopping_basket", label: "Shopping" },
   { key: "purchases", icon: "receipt_long", label: "Purchases" },
-  { key: "more", icon: "widgets", label: "More" },
+  { key: "feedback", icon: "rate_review", label: "Feedback" },
 ];
 
 export function BottomNav({
