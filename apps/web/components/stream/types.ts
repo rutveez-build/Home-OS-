@@ -45,3 +45,10 @@ export type Family = { id: string; name: string; role: string } | null;
 export const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export const MEAL_ORDER: Record<string, number> = { breakfast: 0, lunch: 1, dinner: 2 };
 export const MEAL_LABEL: Record<string, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner" };
+
+export function relativeDay(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  return `${days} days ago`;
+}
