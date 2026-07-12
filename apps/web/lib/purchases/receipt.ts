@@ -9,20 +9,26 @@
 import { z } from "zod";
 import { describeImage } from "@/lib/vision";
 
+// Capped well under the numeric(10,2) column ceiling (~99,999,999.99) that
+// backs every money field on purchases/purchase_items — a malformed or
+// adversarially-crafted "receipt" image shouldn't be able to make the
+// vision model emit a number that overflows the column downstream.
+const MAX_AMOUNT = 9_999_999;
+
 const ReceiptItem = z.object({
   name: z.string().trim().min(1).max(120),
   quantity: z.string().trim().max(40).optional(),
-  unitPrice: z.number().nonnegative().optional(),
-  lineTotal: z.number().nonnegative().optional(),
+  unitPrice: z.number().nonnegative().max(MAX_AMOUNT).optional(),
+  lineTotal: z.number().nonnegative().max(MAX_AMOUNT).optional(),
 });
 
 const ReceiptExtractionSchema = z.object({
   store: z.string().trim().min(1).max(120),
   date: z.string().trim().max(40).optional(), // best-effort ISO-ish; caller falls back to "today" if unparsable
   items: z.array(ReceiptItem).min(1).max(60),
-  subtotal: z.number().nonnegative().optional(),
-  tax: z.number().nonnegative().optional(),
-  total: z.number().nonnegative(),
+  subtotal: z.number().nonnegative().max(MAX_AMOUNT).optional(),
+  tax: z.number().nonnegative().max(MAX_AMOUNT).optional(),
+  total: z.number().nonnegative().max(MAX_AMOUNT),
 });
 export type ReceiptExtraction = z.infer<typeof ReceiptExtractionSchema>;
 

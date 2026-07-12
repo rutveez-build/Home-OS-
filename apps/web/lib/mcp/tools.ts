@@ -28,6 +28,9 @@ export type McpToolDef = {
 };
 
 const mealSlot = z.enum(["breakfast", "lunch", "dinner"]);
+// Capped well under the numeric(10,2) column ceiling (~99,999,999.99) that
+// backs every money field on purchases/purchase_items/known_deals.
+const MAX_AMOUNT = 9_999_999;
 
 export const MCP_TOOLS: McpToolDef[] = [
   {
@@ -145,15 +148,15 @@ export const MCP_TOOLS: McpToolDef[] = [
           z.object({
             name: z.string().trim().min(1).max(120),
             quantity: z.string().trim().max(40).optional(),
-            unitPrice: z.number().nonnegative().optional(),
-            lineTotal: z.number().nonnegative().optional(),
+            unitPrice: z.number().nonnegative().max(MAX_AMOUNT).optional(),
+            lineTotal: z.number().nonnegative().max(MAX_AMOUNT).optional(),
           })
         )
         .min(1)
         .max(60),
-      subtotal: z.number().nonnegative().optional(),
-      tax: z.number().nonnegative().optional(),
-      total: z.number().nonnegative(),
+      subtotal: z.number().nonnegative().max(MAX_AMOUNT).optional(),
+      tax: z.number().nonnegative().max(MAX_AMOUNT).optional(),
+      total: z.number().nonnegative().max(MAX_AMOUNT),
     },
     action: null,
     rest: { method: "POST", path: "/api/app/purchases" },
@@ -171,7 +174,7 @@ export const MCP_TOOLS: McpToolDef[] = [
     inputShape: {
       itemName: z.string().trim().min(1).max(120),
       store: z.string().trim().min(1).max(120),
-      price: z.number().nonnegative(),
+      price: z.number().nonnegative().max(MAX_AMOUNT),
     },
     action: null,
     rest: { method: "POST", path: "/api/app/deals" },

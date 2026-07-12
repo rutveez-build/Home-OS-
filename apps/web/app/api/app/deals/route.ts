@@ -12,10 +12,11 @@ export async function GET() {
   return NextResponse.json({ deals });
 }
 
+// Capped well under the numeric(10,2) column ceiling (~99,999,999.99).
 const Body = z.object({
   itemName: z.string().trim().min(1).max(120),
   store: z.string().trim().min(1).max(120),
-  price: z.number().nonnegative(),
+  price: z.number().nonnegative().max(9_999_999),
 });
 
 // No permission gate — same spirit as feedback/grocery-list additions:

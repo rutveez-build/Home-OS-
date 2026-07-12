@@ -19,6 +19,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ purchases });
 }
 
+// Capped well under the numeric(10,2) column ceiling (~99,999,999.99) —
+// Zod rejecting an absurd amount here beats the DB rejecting it after a
+// purchase row already exists.
+const MAX_AMOUNT = 9_999_999;
 const Body = z.object({
   store: z.string().trim().min(1).max(120),
   purchaseDate: z.string().trim().max(40).optional(),
@@ -27,15 +31,15 @@ const Body = z.object({
       z.object({
         name: z.string().trim().min(1).max(120),
         quantity: z.string().trim().max(40).optional(),
-        unitPrice: z.number().nonnegative().optional(),
-        lineTotal: z.number().nonnegative().optional(),
+        unitPrice: z.number().nonnegative().max(MAX_AMOUNT).optional(),
+        lineTotal: z.number().nonnegative().max(MAX_AMOUNT).optional(),
       })
     )
     .min(1)
     .max(60),
-  subtotal: z.number().nonnegative().optional(),
-  tax: z.number().nonnegative().optional(),
-  total: z.number().nonnegative(),
+  subtotal: z.number().nonnegative().max(MAX_AMOUNT).optional(),
+  tax: z.number().nonnegative().max(MAX_AMOUNT).optional(),
+  total: z.number().nonnegative().max(MAX_AMOUNT),
 });
 
 // No permission gate — logging a purchase is day-to-day household input,

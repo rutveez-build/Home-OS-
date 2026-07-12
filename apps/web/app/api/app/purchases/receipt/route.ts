@@ -12,8 +12,14 @@ export const runtime = "nodejs";
 
 // Vercel serverless functions cap request bodies around 4.5MB — the client
 // downscales the photo before upload (see the Purchases tab), so this is a
-// generous ceiling, not the real limit.
-const Body = z.object({ imageDataUrl: z.string().trim().min(1).max(6_000_000).startsWith("data:image/") });
+// generous ceiling, not the real limit. The pattern requires a base64-encoded
+// raster format specifically (not just any "data:image/*" prefix) — an
+// authenticated household member could otherwise pass e.g. data:image/svg+xml
+// or a non-base64 payload straight through to the vision provider, which
+// doesn't validate it's a real image either; this is provider-cost/abuse
+// surface, not something worth trusting client-side checks alone for.
+const IMAGE_DATA_URL = /^data:image\/(jpeg|jpg|png|webp|gif);base64,[A-Za-z0-9+/]+=*$/;
+const Body = z.object({ imageDataUrl: z.string().trim().min(1).max(6_000_000).regex(IMAGE_DATA_URL, "Must be a base64-encoded JPEG, PNG, WebP, or GIF.") });
 
 export async function POST(req: NextRequest) {
   const auth = await requireFamily();

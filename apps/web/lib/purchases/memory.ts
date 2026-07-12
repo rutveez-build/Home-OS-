@@ -48,7 +48,14 @@ export async function recordPurchase(args: {
   const parsedDate = args.purchaseDate ? new Date(args.purchaseDate) : new Date();
   const purchaseDate = Number.isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
 
-  // Duplicate check: same store + same total, same calendar day, already logged.
+  // Duplicate check is advisory only — a heads-up note, not a hard
+  // constraint (two genuinely separate same-store same-total same-day
+  // purchases are plausible, so there's no unique key to enforce). That
+  // means a race between concurrent submits (double-click, two devices)
+  // can log two rows before either sees the other; accepted for a
+  // household-scale informational record, not worth locking/serializing
+  // for. The client already disables the Save button while a save is in
+  // flight, which covers the common single-user double-click case.
   const possibleDup = await db.query.purchases.findFirst({
     where: and(
       eq(purchases.familyId, args.familyId),
@@ -91,35 +98,43 @@ export async function recordPurchase(args: {
     if (deal) notes.push(`${item.name} was seen for ${deal.price} at ${deal.store} — cheaper than this purchase.`);
   }
 
-  const [purchase] = await db
-    .insert(purchases)
-    .values({
-      familyId: args.familyId,
-      createdByUserId: args.userId,
-      store: args.store,
-      purchaseDate,
-      subtotal: args.subtotal !== undefined ? money(args.subtotal) : null,
-      tax: args.tax !== undefined ? money(args.tax) : null,
-      total: money(args.total),
-      source: args.source,
-    })
-    .returning();
+  // One transaction for purchase + items: without it, a failure on the
+  // second insert (e.g. a value that passed Zod but still overflows the
+  // numeric(10,2) column) would leave a purchase row with zero items
+  // permanently orphaned in the table.
+  const { purchase, items } = await db.transaction(async (tx) => {
+    const [purchase] = await tx
+      .insert(purchases)
+      .values({
+        familyId: args.familyId,
+        createdByUserId: args.userId,
+        store: args.store,
+        purchaseDate,
+        subtotal: args.subtotal !== undefined ? money(args.subtotal) : null,
+        tax: args.tax !== undefined ? money(args.tax) : null,
+        total: money(args.total),
+        source: args.source,
+      })
+      .returning();
 
-  const items = args.items.length
-    ? await db
-        .insert(purchaseItems)
-        .values(
-          args.items.map((item) => ({
-            purchaseId: purchase.id,
-            name: item.name,
-            normalizedName: item.name.trim().toLowerCase(),
-            quantity: item.quantity,
-            unitPrice: item.unitPrice !== undefined ? money(item.unitPrice) : null,
-            lineTotal: item.lineTotal !== undefined ? money(item.lineTotal) : null,
-          }))
-        )
-        .returning()
-    : [];
+    const items = args.items.length
+      ? await tx
+          .insert(purchaseItems)
+          .values(
+            args.items.map((item) => ({
+              purchaseId: purchase.id,
+              name: item.name,
+              normalizedName: item.name.trim().toLowerCase(),
+              quantity: item.quantity,
+              unitPrice: item.unitPrice !== undefined ? money(item.unitPrice) : null,
+              lineTotal: item.lineTotal !== undefined ? money(item.lineTotal) : null,
+            }))
+          )
+          .returning()
+      : [];
+
+    return { purchase, items };
+  });
 
   await recordConsent({ familyId: args.familyId, userId: args.userId, category: "purchase_data", purpose: "purchase history and receipt memory" });
   await logAudit({
