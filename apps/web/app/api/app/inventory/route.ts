@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireFamily, isAuthed } from "@/lib/app-api";
-import { listInventory, upsertInventoryItem } from "@/lib/inventory";
+import { isValidCalendarDate, listInventory, upsertInventoryItem } from "@/lib/inventory";
 
 export const runtime = "nodejs";
 
@@ -13,7 +13,7 @@ const Body = z.object({
   category: z.string().trim().min(1).max(30).optional(),
   expiryDate: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "expiryDate must be YYYY-MM-DD")
+    .refine(isValidCalendarDate, "expiryDate must be a real YYYY-MM-DD date")
     .optional(),
   remove: z.boolean().optional(),
 });

@@ -206,7 +206,7 @@ family-os/
 
 ## What to build next (good first PRs)
 
-- [ ] Add a `Family` tab in the web UI (invite via QR / link, not just WhatsApp)
+- [ ] Family invites via QR / link (the Hub screen invites by phone/WhatsApp today)
 - [ ] Vector-based memory retrieval (pgvector + embeddings)
 - [ ] Message templates for Meta (welcome, daily check-in, appointment reminder)
 - [ ] Inngest/Trigger.dev queue for inbound message processing

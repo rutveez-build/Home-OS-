@@ -14,7 +14,7 @@ import { draftCookMessage } from "../kitchen/cook-message";
 import { listFeedback, recordMealFeedback } from "../kitchen/feedback";
 import { generateWeeklyPlan } from "../kitchen/planner";
 import { buildShoppingList } from "../kitchen/shopping";
-import { listInventory, upsertInventoryItem } from "../inventory";
+import { isValidCalendarDate, listInventory, upsertInventoryItem } from "../inventory";
 import { findRecipes, saveRecipe } from "../recipes";
 import { recordKnownDeal } from "../purchases/deals";
 import { recordPurchase } from "../purchases/memory";
@@ -250,8 +250,8 @@ const handlers: Record<string, ToolHandler> = {
     const name = s(args.name);
     if (!name) return { error: "name is required." };
     const expiryDate = s(args.expiryDate);
-    if (expiryDate && !/^\d{4}-\d{2}-\d{2}$/.test(expiryDate)) {
-      return { error: "expiryDate must be YYYY-MM-DD." };
+    if (expiryDate && !isValidCalendarDate(expiryDate)) {
+      return { error: "expiryDate must be a real YYYY-MM-DD date." };
     }
     const result = await upsertInventoryItem({
       familyId: id.familyId,

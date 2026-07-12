@@ -13,7 +13,13 @@ export function normalizeTitle(title: string): string {
 }
 
 export async function findRecipes(familyId: string, query?: string): Promise<Recipe[]> {
-  const q = query?.trim();
+  // Cap and escape: the pattern is parameterized (no injection), but ILIKE
+  // wildcards in user input would change substring semantics and a huge
+  // query forces needlessly expensive scans.
+  const q = query
+    ?.trim()
+    .slice(0, 120)
+    .replace(/[\\%_]/g, (c) => `\\${c}`);
   return db
     .select()
     .from(recipes)

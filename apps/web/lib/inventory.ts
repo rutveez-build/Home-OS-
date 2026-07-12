@@ -11,6 +11,13 @@ export function normalizeItemName(name: string): string {
   return name.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+/** True only for a real calendar date — "2026-99-99" fails, no Date rollover. */
+export function isValidCalendarDate(iso: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  const d = new Date(`${iso}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === iso;
+}
+
 export type InventoryView = {
   id: string;
   name: string;

@@ -41,6 +41,10 @@ with. Onboarding happens on the web app; MCP picks up after.
 | `log_purchase(store, items[], total, purchaseDate?, subtotal?, tax?)` | `POST /api/app/purchases` | — (any member) | Structured data only — no photo upload over MCP; that's the web app's Purchases tab. Flags likely duplicates, recent re-purchases, and cheaper known deals |
 | `find_purchases(query?)` | `GET /api/app/purchases` | — (any member) | Answers "did we already buy X?" — empty query returns recent purchases |
 | `record_known_deal(itemName, store, price)` | `POST /api/app/deals` | — (any member) | Household-maintained, not scraped — no external price-data source is wired up |
+| `list_inventory()` | `GET /api/app/inventory` | — (any member) | Pantry/fridge contents, soonest-expiring first |
+| `update_inventory(name, quantity?, category?, expiryDate?, remove?)` | `POST /api/app/inventory` | — (any member) | Upserts by name; `remove: true` deletes. `expiryDate` is `YYYY-MM-DD` |
+| `find_recipes(query?)` | `GET /api/app/recipes` | — (any member) | Searches saved recipes by title/tag; empty query lists recent |
+| `save_recipe(title, description?, servings?, ingredients?, steps?, tags?)` | `POST /api/app/recipes` | — (any member) | Same title updates the existing recipe |
 
 Permission is enforced once, centrally, in `app/api/mcp/route.ts` before any
 handler runs — not left for each handler to remember individually.
