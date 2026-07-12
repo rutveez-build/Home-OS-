@@ -19,6 +19,7 @@ import { HomeFeed } from "./stream/HomeFeed";
 import { PlanScreen } from "./stream/PlanScreen";
 import { HandoffScreen } from "./stream/HandoffScreen";
 import { ShoppingScreen } from "./stream/ShoppingScreen";
+import { FeedbackScreen } from "./stream/FeedbackScreen";
 
 type Member = { name: string; note?: string };
 type Profile = {
@@ -348,18 +349,7 @@ function ThinkingDots() {
   );
 }
 
-/* ─────────── feedback screen ─────────── */
-
-const VERDICTS = [
-  { v: "liked", label: "😋 Liked it" },
-  { v: "ok", label: "🙂 It was OK" },
-  { v: "disliked", label: "😕 Not a hit" },
-] as const;
-const LEFTOVER_OPTS = [
-  { v: "none", label: "None left" },
-  { v: "some", label: "Some left" },
-  { v: "lots", label: "Lots left" },
-] as const;
+/* ─────────── purchases screen (receipt memory) ─────────── */
 
 function relativeDay(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
@@ -368,106 +358,6 @@ function relativeDay(iso: string): string {
   return `${days} days ago`;
 }
 
-function FeedbackScreen({ flash }: { flash: (m: string) => void }) {
-  const [history, setHistory] = useState<Feedback[] | null>(null);
-  const [meal, setMeal] = useState<"breakfast" | "lunch" | "dinner">("dinner");
-  const [cooked, setCooked] = useState<"cooked" | "skipped">("cooked");
-  const [verdict, setVerdict] = useState<"liked" | "ok" | "disliked" | undefined>(undefined);
-  const [leftovers, setLeftovers] = useState<"none" | "some" | "lots" | undefined>(undefined);
-  const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function load() {
-    const res = await fetch("/api/app/feedback");
-    const data = await res.json().catch(() => ({}));
-    setHistory(data.feedback ?? []);
-  }
-  useEffect(() => { load(); }, []);
-
-  async function submit() {
-    setBusy(true);
-    const res = await fetch("/api/app/feedback", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ meal, cooked, verdict: cooked === "cooked" ? verdict : undefined, leftovers: cooked === "cooked" ? leftovers : undefined, note: note.trim() || undefined }),
-    });
-    const data = await res.json().catch(() => ({}));
-    setBusy(false);
-    if (res.ok) {
-      flash(data.reply ?? "Noted ✓");
-      setVerdict(undefined);
-      setLeftovers(undefined);
-      setNote("");
-      load();
-    } else flash(data.error ?? "Couldn't save that");
-  }
-
-  return (
-    <ScreenShell eyebrow="Feedback" title="What's working, what's not" sub="A quick note after any meal teaches next week's plan.">
-      <div className="rounded-2xl border border-line bg-surface p-4 dark:border-line-dark dark:bg-surface-dark">
-        <label className="block text-[12.5px] font-semibold">Which meal?</label>
-        <div className="mt-1.5 flex flex-wrap gap-2">
-          {(["breakfast", "lunch", "dinner"] as const).map((m) => (
-            <Chip key={m} on={meal === m} onClick={() => setMeal(m)}>{MEAL_LABEL[m]}</Chip>
-          ))}
-        </div>
-
-        <label className="mt-3 block text-[12.5px] font-semibold">Did it happen?</label>
-        <div className="mt-1.5 flex flex-wrap gap-2">
-          <Chip on={cooked === "cooked"} onClick={() => setCooked("cooked")}>Cooked</Chip>
-          <Chip on={cooked === "skipped"} onClick={() => setCooked("skipped")}>Skipped</Chip>
-        </div>
-
-        {cooked === "cooked" && (
-          <>
-            <label className="mt-3 block text-[12.5px] font-semibold">How was it?</label>
-            <div className="mt-1.5 flex flex-wrap gap-2">
-              {VERDICTS.map((o) => <Chip key={o.v} on={verdict === o.v} onClick={() => setVerdict(o.v)}>{o.label}</Chip>)}
-            </div>
-
-            <label className="mt-3 block text-[12.5px] font-semibold">Leftovers?</label>
-            <div className="mt-1.5 flex flex-wrap gap-2">
-              {LEFTOVER_OPTS.map((o) => <Chip key={o.v} on={leftovers === o.v} onClick={() => setLeftovers(o.v)}>{o.label}</Chip>)}
-            </div>
-          </>
-        )}
-
-        <input
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Anything else? (optional)"
-          className="mt-3 block w-full rounded-2xl border border-line bg-bg px-4 py-2.5 text-[14px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white"
-        />
-        <div className="mt-3"><PrimaryButton gold onClick={submit} disabled={busy}>{busy ? "Saving…" : "Share feedback"}</PrimaryButton></div>
-      </div>
-
-      <h2 className="mt-6 text-[11px] font-bold uppercase tracking-wider text-brand">Recent feedback</h2>
-      {history === null ? (
-        <ThinkingDots />
-      ) : history.length === 0 ? (
-        <p className="mt-2 text-[13.5px] text-ink/55 dark:text-white/55">Nothing shared yet — the first note above will show up here.</p>
-      ) : (
-        <div className="mt-2 space-y-2">
-          {history.map((f) => (
-            <div key={f.id} className="rounded-2xl border border-line bg-surface p-3.5 dark:border-line-dark dark:bg-surface-dark">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="min-w-0 truncate text-[14px] font-semibold">{f.dish}</span>
-                <span className="shrink-0 text-[11px] text-ink/45 dark:text-white/45">{relativeDay(f.createdAt)}</span>
-              </div>
-              <p className="mt-0.5 text-[12.5px] text-ink/60 dark:text-white/60">
-                {MEAL_LABEL[f.meal]} · {f.cooked === "skipped" ? "skipped" : VERDICTS.find((v) => v.v === f.verdict)?.label ?? "cooked"}
-                {f.leftovers && f.leftovers !== "none" ? ` · ${LEFTOVER_OPTS.find((l) => l.v === f.leftovers)?.label.toLowerCase()}` : ""}
-              </p>
-              {f.note && <p className="mt-1 text-[13px] italic text-ink/70 dark:text-white/70">“{f.note}”</p>}
-            </div>
-          ))}
-        </div>
-      )}
-    </ScreenShell>
-  );
-}
-
-/* ─────────── purchases screen (receipt memory) ─────────── */
 
 // Downscale + re-encode client-side before upload — Vercel serverless
 // functions cap request bodies around 4.5MB, and a raw phone photo (often
