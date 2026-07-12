@@ -37,6 +37,7 @@ export default function Landing() {
           <p className="mt-3 text-center text-[13px] text-stream-mute">
             Free to try. Takes under a minute to set up.
           </p>
+          <div className="art-hero mt-7 h-40 w-full rounded-2xl border border-stream-line shadow-card" aria-hidden />
         </div>
       </section>
 

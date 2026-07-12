@@ -58,7 +58,7 @@ export function Onboarding({ onDone }: Props) {
   }
 
   return (
-    <div className="min-h-dvh bg-stream-chat text-stream-ink">
+    <div className="min-h-dvh art-chat bg-stream-chat text-stream-ink">
       <header className="fixed top-0 inset-x-0 z-40 flex h-14 items-center gap-3 bg-stream-header px-4 text-stream-on-header shadow-sm">
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
           <Icon name="cottage" fill className="text-[18px]" />

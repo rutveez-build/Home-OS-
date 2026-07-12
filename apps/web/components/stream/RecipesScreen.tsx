@@ -39,6 +39,8 @@ export function RecipesScreen({
   const [servings, setServings] = useState("");
   const [ingredientsText, setIngredientsText] = useState("");
   const [stepsText, setStepsText] = useState("");
+  const [ytUrl, setYtUrl] = useState("");
+  const [importing, setImporting] = useState(false);
 
   async function load(q?: string) {
     const url = q?.trim() ? `/api/app/recipes?q=${encodeURIComponent(q.trim())}` : "/api/app/recipes";
@@ -89,13 +91,32 @@ export function RecipesScreen({
     load(query);
   }
 
+  async function importFromYouTube() {
+    if (!ytUrl.trim()) return flash("Paste a YouTube link first.");
+    setImporting(true);
+    const res = await fetch("/api/app/recipes/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: ytUrl.trim() }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setImporting(false);
+    if (!res.ok) return flash(data.error ?? "Couldn't import that video.");
+    flash(`Imported "${data.recipe.title}" from YouTube ✓`);
+    setYtUrl("");
+    load(query);
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-5">
-      <section className="px-1">
-        <h2 className="text-xl font-semibold">Recipe guide</h2>
-        <p className="text-sm text-stream-mute">
-          The household&apos;s own how-tos — searchable by dish, usable by anyone who cooks.
-        </p>
+      <section className="art-cooking relative -mx-4 -mt-5 flex h-40 flex-col justify-end px-5 pb-4">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        <div className="relative text-white">
+          <h2 className="text-2xl font-semibold drop-shadow">Recipe guide</h2>
+          <p className="text-sm text-white/85 drop-shadow">
+            The household&apos;s own how-tos — searchable by dish, usable by anyone who cooks.
+          </p>
+        </div>
       </section>
 
       <div className="flex gap-2">
@@ -120,6 +141,32 @@ export function RecipesScreen({
           <Icon name={adding ? "close" : "add"} className="text-[18px]" />
         </button>
       </div>
+
+      <Card className="overflow-hidden">
+        <CardBanner icon="smart_display" label="Add from YouTube" />
+        <div className="flex flex-col gap-2 p-4">
+          <div className="flex gap-2">
+            <input
+              value={ytUrl}
+              onChange={(e) => setYtUrl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && importFromYouTube()}
+              placeholder="Paste a YouTube video link"
+              className={`${inputCls} min-w-0 flex-1`}
+            />
+            <button
+              onClick={importFromYouTube}
+              disabled={importing}
+              className="shrink-0 rounded-xl bg-stream-primary px-4 text-[13px] font-bold uppercase tracking-wide text-stream-on-primary disabled:opacity-50"
+            >
+              {importing ? "Importing…" : "Import"}
+            </button>
+          </div>
+          <p className="text-[11.5px] text-stream-mute">
+            I read the video&apos;s captions and turn them into a saved recipe — ingredients,
+            steps, servings. Needs a captioned video and an LLM key on the server.
+          </p>
+        </div>
+      </Card>
 
       {adding && (
         <Card className="overflow-hidden">

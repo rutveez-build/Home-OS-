@@ -106,3 +106,18 @@ textarea, input { caret-color: rgb(var(--ks-primary)); }
 }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
+
+/* Generated art backgrounds (Higgsfield, brand-owned — public/art/). Each
+   flips with the theme, mirroring the ThemeToggle/data-theme logic above. */
+.art-hero { background-image: url("/art/hero-light.webp"); background-size: cover; background-position: center; }
+.art-ambient { background-image: url("/art/herbs-light.webp"); background-size: cover; background-position: center; }
+.art-cooking { background-image: url("/art/cooking-warm.webp"); background-size: cover; background-position: center; }
+.art-chat { background-image: url("/art/doodle-pattern.webp"); background-size: 520px auto; background-repeat: repeat; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .art-hero { background-image: url("/art/hero-dark.webp"); }
+  :root:not([data-theme="light"]) .art-ambient { background-image: url("/art/kitchen-dark.webp"); }
+  :root:not([data-theme="light"]) .art-chat { background-image: none; }
+}
+:root[data-theme="dark"] .art-hero { background-image: url("/art/hero-dark.webp"); }
+:root[data-theme="dark"] .art-ambient { background-image: url("/art/kitchen-dark.webp"); }
+:root[data-theme="dark"] .art-chat { background-image: none; }

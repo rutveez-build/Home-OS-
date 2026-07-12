@@ -93,6 +93,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
   const [shoppingList, setShoppingList] = useState<{ items: ShoppingItem[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [recipeQuery, setRecipeQuery] = useState<string | undefined>(undefined);
+  const [chatPrefill, setChatPrefill] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState("");
 
   async function loadState() {
@@ -207,6 +208,8 @@ export default function HouseholdApp({ userName }: { userName: string }) {
             onOpenFeedback={() => setScreen("feedback")}
             onOpenInventory={() => setScreen("inventory")}
             onOpenHub={() => setScreen("hub")}
+            onOpenRecipes={() => { setRecipeQuery(undefined); setScreen("recipes"); }}
+            onAskRecipe={() => { setChatPrefill("What's the recipe for "); setScreen("freechat"); }}
             onAsk={async () => {
               setBusy(true);
               const res = await api<{ plan: Plan }>("/api/app/plan", { method: "POST" });
@@ -297,7 +300,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
             onBack={() => { setRecipeQuery(undefined); setScreen(plan ? "plan" : "home"); }}
           />
         )}
-        {screen === "freechat" && <FreeChat onBack={() => setScreen(plan ? "plan" : "home")} />}
+        {screen === "freechat" && <FreeChat initialInput={chatPrefill} onBack={() => { setChatPrefill(undefined); setScreen(plan ? "plan" : "home"); }} />}
       </div>
       {!inWizard && (
         <BottomNav
@@ -390,6 +393,7 @@ function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: 
   const [minted, setMinted] = useState<{ token: string; label: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [recipeQuery, setRecipeQuery] = useState<string | undefined>(undefined);
+  const [chatPrefill, setChatPrefill] = useState<string | undefined>(undefined);
   const [connectClient, setConnectClient] = useState<ConnectClientKey>("claude-cli");
   const mcpUrl = typeof window !== "undefined" ? `${window.location.origin}/api/mcp` : "/api/mcp";
 
@@ -599,11 +603,11 @@ const TEMPLATE_COMMANDS = [
   { label: "Invite family member", cmd: "/family invite " },
 ];
 
-function FreeChat({ onBack }: { onBack: () => void }) {
+function FreeChat({ onBack, initialInput }: { onBack: () => void; initialInput?: string }) {
   const [messages, setMessages] = useState<Msg[]>([
     { role: "assistant", content: "Ask me anything about your household — meals, schedules, or just to talk something through." },
   ]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialInput ?? "");
   const [pending, setPending] = useState(false);
   const [showCommands, setShowCommands] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);

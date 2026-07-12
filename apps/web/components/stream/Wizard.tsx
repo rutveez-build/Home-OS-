@@ -45,7 +45,7 @@ export function WizardBar({ step, total = 3 }: { step: number; total?: number })
 
 function StepCanvas({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-full bg-stream-chat">
+    <div className="min-h-full art-chat bg-stream-chat">
       <div className="mx-auto flex w-full max-w-[600px] flex-col gap-2 px-4 pb-44 pt-5">
         {children}
       </div>

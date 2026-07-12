@@ -32,6 +32,8 @@ export function HomeFeed({
   onOpenFeedback,
   onOpenInventory,
   onOpenHub,
+  onOpenRecipes,
+  onAskRecipe,
 }: {
   userName: string;
   familyName: string;
@@ -45,15 +47,20 @@ export function HomeFeed({
   onOpenFeedback: () => void;
   onOpenInventory: () => void;
   onOpenHub: () => void;
+  onOpenRecipes: () => void;
+  onAskRecipe: () => void;
 }) {
   const [feedbackDismissed, setFeedbackDismissed] = useState(false);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-5">
-      {/* Greeting */}
-      <section className="px-1">
-        <h2 className="text-xl font-semibold">{greeting()}, {userName}!</h2>
-        <p className="text-sm text-stream-mute">{familyName}</p>
+      {/* Greeting on the hero wash */}
+      <section className="art-hero relative -mx-4 -mt-5 px-5 pb-6 pt-6">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-stream-bg/40 to-stream-bg" />
+        <div className="relative">
+          <h2 className="text-2xl font-semibold">{greeting()}, {userName}!</h2>
+          <p className="text-sm text-stream-mute">{familyName}</p>
+        </div>
       </section>
 
       {/* Primary status card — banner strip + border-top accent, per mock */}
@@ -106,6 +113,24 @@ export function HomeFeed({
           )}
         </div>
       </Card>
+
+      {/* Recipes — guide + altered-recipe chat, right under the plan */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card onClick={onOpenRecipes} className="group flex w-full flex-col gap-2 p-4 text-left">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-stream-primary/10 text-stream-primary">
+            <Icon name="menu_book" />
+          </div>
+          <h4 className="text-sm font-semibold">Recipe guide</h4>
+          <p className="text-[12.5px] text-stream-mute">What&apos;s the recipe for the food items?</p>
+        </Card>
+        <Card onClick={onAskRecipe} className="group flex w-full flex-col gap-2 p-4 text-left">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-stream-accent/10 text-stream-primary">
+            <Icon name="tips_and_updates" />
+          </div>
+          <h4 className="text-sm font-semibold">Alter a recipe</h4>
+          <p className="text-[12.5px] text-stream-mute">Chat for swaps, healthier or spicier versions.</p>
+        </Card>
+      </div>
 
       {/* Feedback prompt — Not now / Share, per mock */}
       {!feedbackDismissed && (
@@ -191,8 +216,8 @@ export function HomeFeed({
       )}
 
       {/* Ambient state panel, per mock */}
-      <div className="relative mt-4 h-24 w-full overflow-hidden rounded-xl border border-stream-line bg-stream-surface opacity-70 shadow-card">
-        <div className="absolute inset-0 bg-gradient-to-t from-stream-bg via-transparent to-transparent" />
+      <div className="art-ambient relative mt-4 h-32 w-full overflow-hidden rounded-xl border border-stream-line shadow-card">
+        <div className="absolute inset-0 bg-gradient-to-t from-stream-bg via-stream-bg/30 to-transparent" />
         <div className="absolute bottom-4 left-4 flex items-center gap-2">
           <span className="h-2 w-2 animate-pulse rounded-full bg-stream-accent" />
           <span className="text-[10px] font-bold uppercase tracking-widest text-stream-mute">

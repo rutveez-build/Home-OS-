@@ -52,7 +52,7 @@ export function HandoffScreen({
   }
 
   return (
-    <div className="min-h-full bg-stream-chat">
+    <div className="min-h-full art-chat bg-stream-chat">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-2 px-4 py-5">
         <SystemNote>Daily handoff · {cook?.name ?? "your cook"}</SystemNote>
 
