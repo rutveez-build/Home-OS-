@@ -14,6 +14,7 @@ import {
   EmptyState,
   type NavKey,
 } from "./stream/kit";
+import { WizardBar, FamilyStep, PrefsStep, CookStep } from "./stream/Wizard";
 
 type Member = { name: string; note?: string };
 type Profile = {
@@ -127,18 +128,19 @@ export default function HouseholdApp({ userName }: { userName: string }) {
 
   return (
     <div className="flex h-dvh flex-col bg-stream-bg text-stream-ink">
-      <StreamTopBar
-        title={family?.name ?? brand.name}
-        subtitle={inWizard ? "Setting up your household" : undefined}
-        actions={
-          !inWizard ? (
+      {inWizard ? (
+        <WizardBar step={screen === "wizard-family" ? 1 : screen === "wizard-prefs" ? 2 : 3} />
+      ) : (
+        <StreamTopBar
+          title={family?.name ?? brand.name}
+          actions={
             <>
               <TopBarAction icon="forum" label="Assistant chat" onClick={() => setScreen("freechat")} />
               <TopBarAction icon="settings" label="Household settings" onClick={() => setScreen("connect")} />
             </>
-          ) : undefined
-        }
-      />
+          }
+        />
+      )}
       {notice && (
         <div className="fixed inset-x-0 top-16 z-50 mx-auto w-fit max-w-[90%] rounded-full bg-stream-primary px-4 py-2 text-[13px] font-medium text-stream-on-primary shadow-lg">
           {notice}
@@ -337,227 +339,6 @@ function ThinkingDots() {
       <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-current [animation-delay:160ms]" />
       <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-current [animation-delay:320ms]" />
     </span>
-  );
-}
-
-/* ─────────── wizard step 1: family + members ─────────── */
-
-function FamilyStep({ onDone }: { onDone: (fam: Family) => void }) {
-  const [name, setName] = useState("The Sharmas");
-  const [members, setMembers] = useState<Member[]>([]);
-  const [memberInput, setMemberInput] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-
-  function addMember() {
-    const v = memberInput.trim();
-    if (!v) return;
-    setMembers((m) => [...m, { name: v }]);
-    setMemberInput("");
-  }
-
-  async function submit() {
-    if (!name.trim()) return setErr("Give your household a name.");
-    setBusy(true);
-    setErr("");
-    const res = await fetch("/api/app/family", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim() }),
-    });
-    const data = await res.json().catch(() => ({}));
-    setBusy(false);
-    if (!res.ok) return setErr(data.error ?? "Couldn't create the household.");
-
-    // Members are saved as part of the profile step next; stash them via a
-    // best-effort profile write now so the prefs step can prefill.
-    if (members.length) {
-      await fetch("/api/app/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ members }),
-      }).catch(() => {});
-    }
-    onDone(data.family);
-  }
-
-  return (
-    <ScreenShell eyebrow="Step 1 · Welcome" title="Let's set up your home" sub="Two minutes now saves the “what should we cook?” question every single day.">
-      <label className="block text-[12.5px] font-semibold">What should we call your family?</label>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="mt-1.5 block w-full rounded-2xl border border-line bg-surface px-4 py-3 text-[15px] outline-none transition focus:border-brand/50 dark:border-line-dark dark:bg-surface-dark dark:text-white"
-      />
-
-      <label className="mt-4 block text-[12.5px] font-semibold">Who's in the family? <span className="font-normal text-ink/50 dark:text-white/50">({members.length} added)</span></label>
-      <div className="mt-1.5 flex flex-wrap gap-2">
-        {members.map((m, i) => (
-          <span key={i} className="rounded-full border border-brand bg-brand/10 px-3.5 py-2 text-[13.5px] font-medium text-brand">
-            {m.name}
-          </span>
-        ))}
-      </div>
-      <div className="mt-2 flex gap-2">
-        <input
-          value={memberInput}
-          onChange={(e) => setMemberInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addMember(); } }}
-          placeholder="e.g. Aarav (8)"
-          className="flex-1 rounded-2xl border border-line bg-surface px-4 py-2.5 text-[14px] outline-none transition focus:border-brand/50 dark:border-line-dark dark:bg-surface-dark dark:text-white"
-        />
-        <button onClick={addMember} className="rounded-2xl border border-line px-4 text-[13.5px] font-medium dark:border-line-dark">Add</button>
-      </div>
-
-      {err && <p className="mt-3 text-[13px] text-red-600 dark:text-red-400">{err}</p>}
-      <div className="mt-6">
-        <PrimaryButton gold onClick={submit} disabled={busy}>{busy ? "One moment…" : "Continue"}</PrimaryButton>
-      </div>
-    </ScreenShell>
-  );
-}
-
-/* ─────────── wizard step 2: preferences ─────────── */
-
-const DIET_OPTIONS = ["Vegetarian", "Eggs OK", "Non-veg", "Veg-only Tuesdays"];
-const CUISINE_OPTIONS = ["North Indian", "South Indian", "Indo-Chinese", "Continental"];
-const BUDGETS = ["₹2,000 – ₹3,500", "₹3,500 – ₹5,000", "₹5,000+"];
-
-function PrefsStep({ initial, busy, onSave }: { initial: Profile | null; busy: boolean; onSave: (patch: Partial<Profile>) => void }) {
-  const [diets, setDiets] = useState<string[]>(initial?.diets ?? []);
-  const [allergies, setAllergies] = useState<string[]>(initial?.allergies ?? []);
-  const [allergyInput, setAllergyInput] = useState("");
-  const [cuisines, setCuisines] = useState<string[]>(initial?.cuisines ?? []);
-  const [scope, setScope] = useState<"d" | "ld" | "bld">(initial?.mealScope ?? "ld");
-  const [budget, setBudget] = useState(initial?.budgetBand ?? BUDGETS[1]);
-
-  const toggle = (list: string[], set: (v: string[]) => void, v: string) =>
-    set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
-
-  function addAllergy() {
-    const v = allergyInput.trim();
-    if (!v) return;
-    setAllergies((a) => [...a, v]);
-    setAllergyInput("");
-  }
-
-  return (
-    <ScreenShell eyebrow="Step 2 · Your kitchen" title="How does your family eat?" sub="These become hard rules — I'll never plan around them.">
-      <label className="block text-[12.5px] font-semibold">Diet</label>
-      <div className="mt-1.5 flex flex-wrap gap-2">
-        {DIET_OPTIONS.map((d) => (
-          <Chip key={d} on={diets.includes(d)} onClick={() => toggle(diets, setDiets, d)}>{d}</Chip>
-        ))}
-      </div>
-
-      <label className="mt-4 block text-[12.5px] font-semibold">Allergies &amp; never-serve</label>
-      <div className="mt-1.5 flex flex-wrap gap-2">
-        {allergies.map((a) => (
-          <span key={a} className="rounded-full border border-coral bg-coral/10 px-3.5 py-2 text-[13.5px] font-medium text-coral">{a}</span>
-        ))}
-      </div>
-      <div className="mt-2 flex gap-2">
-        <input
-          value={allergyInput}
-          onChange={(e) => setAllergyInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAllergy(); } }}
-          placeholder="e.g. Peanuts"
-          className="flex-1 rounded-2xl border border-line bg-surface px-4 py-2.5 text-[14px] outline-none transition focus:border-brand/50 dark:border-line-dark dark:bg-surface-dark dark:text-white"
-        />
-        <button onClick={addAllergy} className="rounded-2xl border border-line px-4 text-[13.5px] font-medium dark:border-line-dark">Add</button>
-      </div>
-
-      <label className="mt-4 block text-[12.5px] font-semibold">Cuisines you love</label>
-      <div className="mt-1.5 flex flex-wrap gap-2">
-        {CUISINE_OPTIONS.map((c) => (
-          <Chip key={c} on={cuisines.includes(c)} onClick={() => toggle(cuisines, setCuisines, c)}>{c}</Chip>
-        ))}
-      </div>
-
-      <label className="mt-4 block text-[12.5px] font-semibold">Which meals should I plan?</label>
-      <div className="mt-1.5 flex flex-wrap gap-2">
-        <Chip on={scope === "d"} onClick={() => setScope("d")}>Dinner only</Chip>
-        <Chip on={scope === "ld"} onClick={() => setScope("ld")}>Lunch + Dinner</Chip>
-        <Chip on={scope === "bld"} onClick={() => setScope("bld")}>Breakfast, Lunch + Dinner</Chip>
-      </div>
-
-      <label className="mt-4 block text-[12.5px] font-semibold">Weekly grocery budget</label>
-      <select
-        value={budget}
-        onChange={(e) => setBudget(e.target.value)}
-        className="mt-1.5 block w-full rounded-2xl border border-line bg-surface px-4 py-3 text-[15px] outline-none dark:border-line-dark dark:bg-surface-dark dark:text-white"
-      >
-        {BUDGETS.map((b) => <option key={b}>{b}</option>)}
-      </select>
-
-      <div className="mt-6">
-        <PrimaryButton gold disabled={busy} onClick={() => onSave({ diets, allergies, cuisines, mealScope: scope, budgetBand: budget })}>
-          {busy ? "Saving…" : "Continue"}
-        </PrimaryButton>
-      </div>
-    </ScreenShell>
-  );
-}
-
-/* ─────────── wizard step 3: cook setup ─────────── */
-
-const LANGS = [
-  { code: "hi", label: "हिन्दी" }, { code: "en", label: "English" },
-  { code: "mr", label: "मराठी" }, { code: "kn", label: "ಕನ್ನಡ" },
-];
-const FREQS = [
-  { v: "occasionally", label: "Occasionally" }, { v: "once_daily", label: "Once a day" },
-  { v: "twice_daily", label: "Twice a day" }, { v: "thrice_daily", label: "Thrice a day" },
-  { v: "live_in", label: "Lives in the house" },
-];
-
-function CookStep({ busy, onSave, onSkip }: { busy: boolean; onSave: (body: { name: string; phone?: string; language: string; frequency: string }) => void; onSkip: () => void }) {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [lang, setLang] = useState("hi");
-  const [freq, setFreq] = useState("once_daily");
-  const [err, setErr] = useState("");
-
-  return (
-    <ScreenShell eyebrow="Step 3 · Your cook" title="Who cooks at home?" sub="I'll draft daily menus in their language. Nothing is ever sent without your approval.">
-      <label className="block text-[12.5px] font-semibold">Cook's name</label>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="e.g. Sunita didi"
-        className="mt-1.5 block w-full rounded-2xl border border-line bg-surface px-4 py-3 text-[15px] outline-none transition focus:border-brand/50 dark:border-line-dark dark:bg-surface-dark dark:text-white"
-      />
-      <label className="mt-4 block text-[12.5px] font-semibold">WhatsApp number <span className="font-normal text-ink/50 dark:text-white/50">(optional)</span></label>
-      <input
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        placeholder="+91XXXXXXXXXX"
-        className="mt-1.5 block w-full rounded-2xl border border-line bg-surface px-4 py-3 text-[15px] outline-none transition focus:border-brand/50 dark:border-line-dark dark:bg-surface-dark dark:text-white"
-      />
-      <label className="mt-4 block text-[12.5px] font-semibold">Language for cook messages</label>
-      <div className="mt-1.5 flex flex-wrap gap-2">
-        {LANGS.map((l) => <Chip key={l.code} on={lang === l.code} onClick={() => setLang(l.code)}>{l.label}</Chip>)}
-      </div>
-      <label className="mt-4 block text-[12.5px] font-semibold">How often does the cook come?</label>
-      <div className="mt-1.5 flex flex-wrap gap-2">
-        {FREQS.map((f) => <Chip key={f.v} on={freq === f.v} onClick={() => setFreq(f.v)}>{f.label}</Chip>)}
-      </div>
-
-      {err && <p className="mt-3 text-[13px] text-red-600 dark:text-red-400">{err}</p>}
-      <div className="mt-6">
-        <PrimaryButton
-          gold
-          disabled={busy}
-          onClick={() => {
-            if (!name.trim()) return setErr("Add the cook's name, or skip for now.");
-            onSave({ name: name.trim(), phone: phone.trim() || undefined, language: lang, frequency: freq });
-          }}
-        >
-          {busy ? "Saving…" : "Finish setup"}
-        </PrimaryButton>
-        <GhostButton onClick={onSkip}>Skip for now</GhostButton>
-      </div>
-    </ScreenShell>
   );
 }
 

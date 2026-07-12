@@ -1,8 +1,12 @@
 "use client";
 
+// Account screen (signup/login), Kitchen Stream style — the assistant greets
+// you in a chat bubble and the form sits on the stream background. Logic is
+// unchanged from the cream version; only the skin moved to stream tokens.
+
 import { useEffect, useRef, useState } from "react";
-import { Logo } from "./Logo";
 import { brand } from "@/lib/brand";
+import { Bubble, Icon, SystemNote } from "./stream/kit";
 
 type Props = {
   // email set → account session already established by /api/auth
@@ -10,8 +14,8 @@ type Props = {
 };
 
 const input =
-  "mt-2 block w-full rounded-2xl border border-line bg-surface px-4 py-3.5 text-[17px] outline-none transition focus:border-brand/50 dark:border-line-dark dark:bg-surface-dark dark:text-white";
-const label = "block text-[13px] font-medium text-ink/70 dark:text-white/70";
+  "mt-1.5 block w-full rounded-xl border border-stream-line bg-stream-bubble-in px-4 py-3 text-[16px] text-stream-ink shadow-card outline-none transition placeholder:text-stream-mute focus:border-stream-primary";
+const label = "block text-[13px] font-semibold text-stream-ink";
 
 export function Onboarding({ onDone }: Props) {
   const [mode, setMode] = useState<"signup" | "login">("signup");
@@ -54,49 +58,89 @@ export function Onboarding({ onDone }: Props) {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center bg-bg px-6 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-[max(env(safe-area-inset-top),2.5rem)] dark:bg-bg-dark">
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-6">
-        <div className="animate-fade-in">
-          <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand text-white">
-            <Logo size={26} />
-          </div>
-          <h1 className="text-[28px] font-semibold leading-tight tracking-tight">
-            {mode === "signup" ? <>Hi. I&apos;m the {brand.name} assistant.</> : <>Welcome back.</>}
-          </h1>
-          <p className="mt-2 text-[15px] leading-relaxed text-ink/65 dark:text-white/65">
-            {mode === "signup"
-              ? "A quick account so your household follows you across devices."
-              : "Log in to pick up where your family left off."}
-          </p>
-        </div>
+    <div className="min-h-dvh bg-stream-chat text-stream-ink">
+      <header className="fixed top-0 inset-x-0 z-40 flex h-14 items-center gap-3 bg-stream-header px-4 text-stream-on-header shadow-sm">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
+          <Icon name="cottage" fill className="text-[18px]" />
+        </span>
+        <h1 className="text-[18px] font-semibold">{brand.name}</h1>
+      </header>
 
-        <div className="mt-8 animate-slide-up space-y-4">
+      <div className="mx-auto flex w-full max-w-[600px] flex-col gap-2 px-4 pb-44 pt-20">
+        <SystemNote>{mode === "signup" ? "New household" : "Welcome back"}</SystemNote>
+        <Bubble direction="in" time="Just now" className="mt-2">
+          {mode === "signup"
+            ? `Hi! I'm the ${brand.name} assistant. A quick account, and your household follows you across devices.`
+            : "Welcome back. Log in to pick up where your family left off."}
+        </Bubble>
+
+        <div className="mt-3 space-y-4 rounded-xl border border-stream-line bg-stream-surface p-4 shadow-card">
           {mode === "signup" && (
             <div>
               <label className={label}>What should I call you?</label>
-              <input ref={inputRef} value={name} onChange={(e) => setName(e.target.value.slice(0, 32))} placeholder="Your name, or a nickname" autoCapitalize="words" className={input} />
+              <input
+                ref={inputRef}
+                value={name}
+                onChange={(e) => setName(e.target.value.slice(0, 32))}
+                placeholder="Your name, or a nickname"
+                autoCapitalize="words"
+                className={input}
+              />
             </div>
           )}
           <div>
             <label className={label}>Email</label>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" type="email" autoComplete="email" className={input} />
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              type="email"
+              autoComplete="email"
+              className={input}
+            />
           </div>
           <div>
-            <label className={label}>Password {mode === "signup" && <span className="opacity-60">(8+ characters)</span>}</label>
-            <input value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} className={input} />
+            <label className={label}>
+              Password {mode === "signup" && <span className="font-normal text-stream-mute">(8+ characters)</span>}
+            </label>
+            <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submit();
+              }}
+              type="password"
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              className={input}
+            />
           </div>
           {mode === "signup" && (
             <>
               <div>
-                <label className={label}>WhatsApp number <span className="opacity-60">(optional — for later)</span></label>
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91XXXXXXXXXX" type="tel" className={input} />
+                <label className={label}>
+                  WhatsApp number <span className="font-normal text-stream-mute">(optional — for later)</span>
+                </label>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+91XXXXXXXXXX"
+                  type="tel"
+                  className={input}
+                />
               </div>
               <div>
                 <div className={`${label} mb-2`}>Which language feels easiest?</div>
                 <div className="flex gap-2">
                   {([["en", "English"], ["hi", "हिन्दी"], ["kn", "ಕನ್ನಡ"]] as const).map(([code, l]) => (
-                    <button key={code} onClick={() => setLanguage(code)}
-                      className={`flex-1 rounded-2xl border px-3 py-2.5 text-[15px] transition ${language === code ? "border-brand bg-brand/10 text-brand dark:text-white" : "border-line bg-surface text-ink/70 dark:border-line-dark dark:bg-surface-dark dark:text-white/70"}`}>
+                    <button
+                      key={code}
+                      onClick={() => setLanguage(code)}
+                      className={`flex-1 rounded-full border px-3 py-2.5 text-[14px] font-semibold shadow-card transition-colors ${
+                        language === code
+                          ? "border-stream-primary bg-stream-primary text-stream-on-primary"
+                          : "border-stream-line bg-stream-bubble-in text-stream-ink hover:bg-stream-primary/10"
+                      }`}
+                    >
                       {l}
                     </button>
                   ))}
@@ -104,19 +148,29 @@ export function Onboarding({ onDone }: Props) {
               </div>
             </>
           )}
-          {error && <p className="text-[14px] text-red-600 dark:text-red-400">{error}</p>}
+          {error && <p className="text-[13px] font-medium text-stream-danger">{error}</p>}
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-md animate-slide-up space-y-2 [animation-delay:80ms]">
-        <button onClick={submit} disabled={busy}
-          className="w-full rounded-2xl bg-brand py-4 text-[16px] font-semibold text-white shadow-sm transition active:bg-brand-deep active:scale-[0.99] disabled:opacity-50">
-          {busy ? "One moment…" : mode === "signup" ? "Create my account" : "Log in"}
-        </button>
-        <button onClick={() => { setError(""); setMode(mode === "signup" ? "login" : "signup"); }}
-          className="block w-full rounded-2xl py-3 text-[14px] text-ink/55 active:text-ink/80 dark:text-white/55">
-          {mode === "signup" ? "Already have an account? Log in" : "New here? Create an account"}
-        </button>
+      <div className="fixed bottom-0 inset-x-0 z-40 border-t border-stream-line bg-stream-bg px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="mx-auto flex w-full max-w-[600px] flex-col gap-1">
+          <button
+            onClick={submit}
+            disabled={busy}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-stream-primary py-3.5 text-[13px] font-bold uppercase tracking-wide text-stream-on-primary shadow-sm transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-50"
+          >
+            {busy ? "One moment…" : mode === "signup" ? "Create my account" : "Log in"}
+          </button>
+          <button
+            onClick={() => {
+              setError("");
+              setMode(mode === "signup" ? "login" : "signup");
+            }}
+            className="w-full rounded-xl py-2.5 text-[13px] font-medium text-stream-mute transition-colors hover:text-stream-ink"
+          >
+            {mode === "signup" ? "Already have an account? Log in" : "New here? Create an account"}
+          </button>
+        </div>
       </div>
     </div>
   );
