@@ -432,13 +432,13 @@ function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: 
   return (
     <ScreenShell eyebrow="Connect" title="Link an AI assistant" sub="ChatGPT, Claude, or Codex can plan meals and check your household through this connector — always approval-gated, same as here.">
       {minted && (
-        <div className="mb-4 rounded-2xl border-2 border-brand bg-brand/10 p-4">
+        <div className="mb-4 rounded-xl border-2 border-stream-primary bg-stream-primary/10 p-4">
           <p className="text-[13.5px] font-semibold">Token for “{minted.label}” — shown once</p>
-          <p className="mt-1 text-[12px] text-ink/60 dark:text-white/70">Copy it now. It can't be shown again — you'd need to create a new one.</p>
-          <div className="mt-2 break-all rounded-xl bg-surface px-3 py-2 font-mono text-[12px] dark:bg-surface-dark">{minted.token}</div>
-          <button onClick={() => copy(minted.token)} className="mt-2 w-full rounded-xl bg-brand py-2 text-[13px] font-semibold text-white">Copy token</button>
+          <p className="mt-1 text-[12px] text-stream-mute">Copy it now. It can't be shown again — you'd need to create a new one.</p>
+          <div className="mt-2 break-all rounded-xl bg-stream-surface px-3 py-2 font-mono text-[12px]">{minted.token}</div>
+          <button onClick={() => copy(minted.token)} className="mt-2 w-full rounded-xl bg-stream-primary py-2 text-[13px] font-semibold text-stream-on-primary">Copy token</button>
 
-          <div className="mt-4 border-t border-line/60 pt-3 dark:border-line-dark/60">
+          <div className="mt-4 border-t border-stream-line/60 pt-3">
             <p className="text-[12.5px] font-semibold">Connect it to</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {CONNECT_CLIENTS.map((c) => (
@@ -446,7 +446,7 @@ function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: 
                   key={c.key}
                   onClick={() => setConnectClient(c.key)}
                   className={`rounded-lg px-2.5 py-1 text-[11.5px] font-medium ${
-                    connectClient === c.key ? "bg-brand text-white" : "border border-line dark:border-line-dark"
+                    connectClient === c.key ? "bg-stream-primary text-stream-on-primary" : "border border-stream-line"
                   }`}
                 >
                   {c.label}
@@ -456,13 +456,13 @@ function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: 
 
             {connectClient === "claude-cli" && (
               <div className="mt-2.5">
-                <p className="text-[12px] text-ink/60 dark:text-white/70">Run this in a terminal:</p>
-                <pre className="mt-1 overflow-x-auto rounded-xl bg-surface px-3 py-2 font-mono text-[11.5px] dark:bg-surface-dark">
+                <p className="text-[12px] text-stream-mute">Run this in a terminal:</p>
+                <pre className="mt-1 overflow-x-auto rounded-xl bg-stream-surface px-3 py-2 font-mono text-[11.5px]">
 {`claude mcp add home-os --url ${mcpUrl} \\\n  --header "Authorization: Bearer ${minted.token}"`}
                 </pre>
                 <button
                   onClick={() => copy(`claude mcp add home-os --url ${mcpUrl} --header "Authorization: Bearer ${minted.token}"`)}
-                  className="mt-1.5 rounded-lg border border-line px-2.5 py-1 text-[11.5px] font-medium dark:border-line-dark"
+                  className="mt-1.5 rounded-lg border border-stream-line px-2.5 py-1 text-[11.5px] font-medium"
                 >
                   Copy command
                 </button>
@@ -471,15 +471,15 @@ function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: 
 
             {connectClient === "codex" && (
               <div className="mt-2.5">
-                <p className="text-[12px] text-ink/60 dark:text-white/70">
+                <p className="text-[12px] text-stream-mute">
                   Add this to <code className="font-mono">~/.codex/config.toml</code>:
                 </p>
-                <pre className="mt-1 overflow-x-auto rounded-xl bg-surface px-3 py-2 font-mono text-[11.5px] dark:bg-surface-dark">
+                <pre className="mt-1 overflow-x-auto rounded-xl bg-stream-surface px-3 py-2 font-mono text-[11.5px]">
 {`[mcp_servers.home-os]\nurl = "${mcpUrl}"\nbearer_token = "${minted.token}"`}
                 </pre>
                 <button
                   onClick={() => copy(`[mcp_servers.home-os]\nurl = "${mcpUrl}"\nbearer_token = "${minted.token}"`)}
-                  className="mt-1.5 rounded-lg border border-line px-2.5 py-1 text-[11.5px] font-medium dark:border-line-dark"
+                  className="mt-1.5 rounded-lg border border-stream-line px-2.5 py-1 text-[11.5px] font-medium"
                 >
                   Copy block
                 </button>
@@ -487,7 +487,7 @@ function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: 
             )}
 
             {connectClient === "claude-web" && (
-              <ol className="mt-2.5 list-decimal space-y-1 pl-4 text-[12px] text-ink/70 dark:text-white/75">
+              <ol className="mt-2.5 list-decimal space-y-1 pl-4 text-[12px] text-stream-ink/80">
                 <li>On claude.ai, go to <b>Settings → Connectors → Add custom connector</b>.</li>
                 <li>Paste the Server URL shown above — that's the only field it needs.</li>
                 <li>Claude opens a Home OS sign-in + approval screen — sign in and tap <b>Approve</b> there (not here).</li>
@@ -496,7 +496,7 @@ function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: 
             )}
 
             {connectClient === "chatgpt" && (
-              <ol className="mt-2.5 list-decimal space-y-1 pl-4 text-[12px] text-ink/70 dark:text-white/75">
+              <ol className="mt-2.5 list-decimal space-y-1 pl-4 text-[12px] text-stream-ink/80">
                 <li>In ChatGPT, go to <b>Settings → Connectors</b> (turn on Developer Mode first if you don't see "Add connector").</li>
                 <li>Paste the Server URL shown above — that's the only field it needs.</li>
                 <li>ChatGPT opens a Home OS sign-in + approval screen — sign in and tap <b>Approve</b> there (not here).</li>
@@ -505,7 +505,7 @@ function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: 
             )}
 
             {(connectClient === "claude-web" || connectClient === "chatgpt") && (
-              <p className="mt-2 text-[11px] text-ink/45 dark:text-white/45">
+              <p className="mt-2 text-[11px] text-stream-mute">
                 No need to copy the token above for this one — it signs in and approves the connection itself. The token above is only for the CLI tabs.
               </p>
             )}
@@ -513,11 +513,11 @@ function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: 
         </div>
       )}
 
-      <div className="rounded-2xl border border-line bg-surface p-4 dark:border-line-dark dark:bg-surface-dark">
+      <div className="rounded-xl border border-stream-line bg-stream-surface p-4">
         <label className="block text-[12.5px] font-semibold">Server URL</label>
         <div className="mt-1.5 flex gap-2">
-          <div className="flex-1 truncate rounded-xl border border-line bg-bg px-3 py-2 font-mono text-[12px] dark:border-line-dark dark:bg-bg-dark">{mcpUrl}</div>
-          <button onClick={() => copy(mcpUrl)} className="shrink-0 rounded-xl border border-line px-3 text-[12px] font-medium dark:border-line-dark">Copy</button>
+          <div className="flex-1 truncate rounded-xl border border-stream-line bg-stream-bg px-3 py-2 font-mono text-[12px]">{mcpUrl}</div>
+          <button onClick={() => copy(mcpUrl)} className="shrink-0 rounded-xl border border-stream-line px-3 text-[12px] font-medium">Copy</button>
         </div>
 
         <label className="mt-3 block text-[12.5px] font-semibold">New connector</label>
@@ -526,28 +526,28 @@ function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: 
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="e.g. ChatGPT"
-            className="flex-1 rounded-xl border border-line bg-bg px-3 py-2 text-[14px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white"
+            className="flex-1 rounded-xl border border-stream-line bg-stream-bg px-3 py-2 text-[14px] outline-none"
           />
-          <button onClick={create} disabled={busy} className="shrink-0 rounded-xl bg-brand px-4 text-[13px] font-semibold text-white disabled:opacity-50">{busy ? "…" : "Create"}</button>
+          <button onClick={create} disabled={busy} className="shrink-0 rounded-xl bg-stream-primary px-4 text-[13px] font-semibold text-stream-on-primary disabled:opacity-50">{busy ? "…" : "Create"}</button>
         </div>
       </div>
 
-      <h2 className="mt-6 text-[11px] font-bold uppercase tracking-wider text-brand">Active connectors</h2>
+      <h2 className="mt-6 text-[11px] font-bold uppercase tracking-wider text-stream-primary">Active connectors</h2>
       {tokens === null ? (
         <ThinkingDots />
       ) : tokens.filter((t) => !t.revokedAt).length === 0 ? (
-        <p className="mt-2 text-[13.5px] text-ink/55 dark:text-white/55">None yet — create one above.</p>
+        <p className="mt-2 text-[13.5px] text-stream-mute">None yet — create one above.</p>
       ) : (
         <div className="mt-2 space-y-2">
           {tokens.filter((t) => !t.revokedAt).map((t) => (
-            <div key={t.id} className="flex items-center justify-between gap-2 rounded-2xl border border-line bg-surface p-3.5 dark:border-line-dark dark:bg-surface-dark">
+            <div key={t.id} className="flex items-center justify-between gap-2 rounded-xl border border-stream-line bg-stream-surface p-3.5">
               <div className="min-w-0">
                 <p className="truncate text-[14px] font-semibold">{t.label}</p>
-                <p className="text-[11.5px] text-ink/50 dark:text-white/50">
+                <p className="text-[11.5px] text-stream-mute">
                   {t.lastUsedAt ? `Last used ${relativeDay(t.lastUsedAt)}` : "Never used yet"}
                 </p>
               </div>
-              <button onClick={() => revoke(t.id)} className="shrink-0 rounded-lg border border-coral px-2.5 py-1 text-[11.5px] font-medium text-coral">Revoke</button>
+              <button onClick={() => revoke(t.id)} className="shrink-0 rounded-lg border border-stream-danger/40 px-2.5 py-1 text-[11.5px] font-medium text-stream-danger">Revoke</button>
             </div>
           ))}
         </div>
@@ -637,33 +637,33 @@ function FreeChat({ onBack }: { onBack: () => void }) {
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
               <div className={m.role === "user"
-                ? "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-brand px-4 py-2.5 text-[15px] leading-relaxed text-white shadow-bubble"
-                : "max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-surface px-4 py-3 text-[15px] leading-relaxed shadow-bubble dark:bg-surface-dark"}>
+                ? "max-w-[85%] whitespace-pre-wrap rounded-xl rounded-br-md bg-stream-bubble-out px-4 py-2.5 text-[15px] leading-relaxed text-stream-on-bubble-out shadow-card"
+                : "max-w-[88%] whitespace-pre-wrap rounded-xl rounded-bl-md bg-stream-surface px-4 py-3 text-[15px] leading-relaxed shadow-card"}>
                 {m.content || (pending && i === messages.length - 1 ? <ThinkingDots /> : null)}
               </div>
             </div>
           ))}
         </div>
       </div>
-      <div className="border-t border-line bg-bg/95 px-3 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur dark:border-line-dark dark:bg-bg-dark/95">
+      <div className="border-t border-stream-line bg-stream-bg/95 px-3 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur">
         <div className="mx-auto max-w-2xl">
           <button
             onClick={() => setShowCommands((v) => !v)}
-            className="mb-1.5 flex items-center gap-1 text-[12px] font-medium text-ink/55 dark:text-white/55"
+            className="mb-1.5 flex items-center gap-1 text-[12px] font-medium text-stream-mute"
           >
             <span>{showCommands ? "▾" : "▸"}</span> Commands — tap instead of typing
           </button>
           {showCommands && (
             <div className="mb-2 space-y-1.5">
               <div>
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-brand">Tap to run</p>
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-stream-primary">Tap to run</p>
                 <div className="flex gap-1.5 overflow-x-auto pb-1">
                   {QUICK_COMMANDS.map((c) => (
                     <button
                       key={c.cmd}
                       onClick={() => send(c.cmd)}
                       disabled={pending}
-                      className="shrink-0 whitespace-nowrap rounded-full border border-brand bg-brand/10 px-3 py-1.5 text-[12.5px] font-medium text-brand disabled:opacity-40"
+                      className="shrink-0 whitespace-nowrap rounded-full border border-stream-primary bg-stream-primary/10 px-3 py-1.5 text-[12.5px] font-medium text-stream-primary disabled:opacity-40"
                     >
                       {c.label}
                     </button>
@@ -671,13 +671,13 @@ function FreeChat({ onBack }: { onBack: () => void }) {
                 </div>
               </div>
               <div>
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-ink/45 dark:text-white/45">Tap to fill in, then send</p>
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-stream-mute">Tap to fill in, then send</p>
                 <div className="flex gap-1.5 overflow-x-auto pb-1">
                   {TEMPLATE_COMMANDS.map((c) => (
                     <button
                       key={c.cmd}
                       onClick={() => { setInput(c.cmd); inputRef.current?.focus(); }}
-                      className="shrink-0 whitespace-nowrap rounded-full border border-line px-3 py-1.5 text-[12.5px] font-medium text-ink/70 dark:border-line-dark dark:text-white/70"
+                      className="shrink-0 whitespace-nowrap rounded-full border border-stream-line px-3 py-1.5 text-[12.5px] font-medium text-stream-ink/80"
                     >
                       {c.label}
                     </button>
@@ -687,7 +687,7 @@ function FreeChat({ onBack }: { onBack: () => void }) {
             </div>
           )}
           <div className="flex items-end gap-2">
-            <button onClick={onBack} className="shrink-0 rounded-full border border-line px-3 py-2.5 text-[12.5px] font-medium dark:border-line-dark">← Back</button>
+            <button onClick={onBack} className="shrink-0 rounded-full border border-stream-line px-3 py-2.5 text-[12.5px] font-medium">← Back</button>
             <textarea
               ref={inputRef}
               value={input}
@@ -695,9 +695,9 @@ function FreeChat({ onBack }: { onBack: () => void }) {
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
               placeholder="Type a message…"
               rows={1}
-              className="block w-full max-h-32 min-h-[44px] resize-none rounded-3xl border border-line bg-surface px-4 py-2.5 text-[15px] leading-snug outline-none focus:border-brand/40 dark:border-line-dark dark:bg-surface-dark dark:text-white"
+              className="block w-full max-h-32 min-h-[44px] resize-none rounded-xl border border-stream-line bg-stream-surface px-4 py-2.5 text-[15px] leading-snug outline-none focus:border-stream-primary/40"
             />
-            <button onClick={() => send()} disabled={pending || !input.trim()} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-white disabled:opacity-30">→</button>
+            <button onClick={() => send()} disabled={pending || !input.trim()} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-stream-primary text-stream-on-primary disabled:opacity-30">→</button>
           </div>
         </div>
       </div>
