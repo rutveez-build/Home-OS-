@@ -12,15 +12,15 @@
      Tailwind alpha modifiers work. Light values from the Stitch design
      system; dark values below are WhatsApp-dark equivalents (the Stitch
      system is light-only, dark mode is a functional requirement). */
-  --ks-primary: 18 140 126;    /* #128C7E emerald — actions, active states */
+  --ks-primary: 0 104 93;      /* #00685D deep emerald — Stitch DS primary */
   --ks-on-primary: 255 255 255;
-  --ks-accent: 37 211 102;     /* #25D366 — FAB, success */
-  --ks-header: 18 140 126;     /* header bar (≠ primary in dark) */
+  --ks-accent: 0 131 118;      /* #008376 — Stitch DS primary-container; FAB, success */
+  --ks-header: 0 104 93;       /* header bar (≠ primary in dark) */
   --ks-on-header: 255 255 255;
-  --ks-bg: 240 242 245;        /* #F0F2F5 app background */
+  --ks-bg: 247 249 252;        /* #F7F9FC — Stitch DS surface */
   --ks-chat: 229 221 213;      /* #E5DDD5 stream background */
   --ks-surface: 255 255 255;   /* cards, incoming bubbles' kin */
-  --ks-surface-2: 236 238 241; /* #ECEEF1 recessed containers */
+  --ks-surface-2: 236 238 241; /* #ECEEF1 — Stitch DS surface-container */
   --ks-bubble-in: 255 255 255;
   --ks-bubble-out: 220 248 198; /* #DCF8C6 */
   --ks-ink: 25 28 30;          /* #191C1E primary text */
@@ -31,20 +31,22 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
+    /* Dark is derived from the same emerald hue as the light DS —
+       green-tinted near-blacks, not WhatsApp's blue-grays. */
     --ks-primary: 0 168 132;   /* #00A884 */
     --ks-on-primary: 255 255 255;
     --ks-accent: 0 168 132;
-    --ks-header: 32 44 51;     /* #202C33 */
-    --ks-on-header: 233 237 239;
-    --ks-bg: 17 27 33;         /* #111B21 */
-    --ks-chat: 11 20 26;       /* #0B141A */
-    --ks-surface: 32 44 51;    /* #202C33 */
-    --ks-surface-2: 24 34 40;
-    --ks-bubble-in: 32 44 51;
-    --ks-bubble-out: 0 92 75;  /* #005C4B */
-    --ks-ink: 233 237 239;     /* #E9EDEF */
-    --ks-mute: 134 150 160;    /* #8696A0 */
-    --ks-line: 42 57 66;       /* #2A3942 */
+    --ks-header: 16 31 28;     /* #101F1C */
+    --ks-on-header: 229 237 234;
+    --ks-bg: 10 20 18;         /* #0A1412 */
+    --ks-chat: 7 15 13;        /* #070F0D */
+    --ks-surface: 21 33 30;    /* #15211E */
+    --ks-surface-2: 15 26 23;
+    --ks-bubble-in: 21 33 30;
+    --ks-bubble-out: 0 80 71;  /* #005047 */
+    --ks-ink: 229 237 234;     /* #E5EDEA */
+    --ks-mute: 140 155 150;
+    --ks-line: 42 58 54;       /* #2A3A36 */
     --ks-tick: 83 189 235;
     --ks-danger: 255 180 171;
   }
