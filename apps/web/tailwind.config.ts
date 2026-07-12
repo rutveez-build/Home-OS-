@@ -5,6 +5,29 @@ export default {
   theme: {
     extend: {
       colors: {
+        // "Kitchen Stream" design system (Stitch project HomeOS Kitchen Chat).
+        // Values live as CSS variables in globals.css so dark mode flips them
+        // automatically via prefers-color-scheme — no dark: classes needed.
+        stream: {
+          primary: "rgb(var(--ks-primary) / <alpha-value>)",
+          "on-primary": "rgb(var(--ks-on-primary) / <alpha-value>)",
+          accent: "rgb(var(--ks-accent) / <alpha-value>)",
+          header: "rgb(var(--ks-header) / <alpha-value>)",
+          "on-header": "rgb(var(--ks-on-header) / <alpha-value>)",
+          bg: "rgb(var(--ks-bg) / <alpha-value>)",
+          chat: "rgb(var(--ks-chat) / <alpha-value>)",
+          surface: "rgb(var(--ks-surface) / <alpha-value>)",
+          "surface-2": "rgb(var(--ks-surface-2) / <alpha-value>)",
+          "bubble-in": "rgb(var(--ks-bubble-in) / <alpha-value>)",
+          "bubble-out": "rgb(var(--ks-bubble-out) / <alpha-value>)",
+          ink: "rgb(var(--ks-ink) / <alpha-value>)",
+          mute: "rgb(var(--ks-mute) / <alpha-value>)",
+          line: "rgb(var(--ks-line) / <alpha-value>)",
+          tick: "rgb(var(--ks-tick) / <alpha-value>)",
+          danger: "rgb(var(--ks-danger) / <alpha-value>)",
+        },
+        // Legacy cream palette — still referenced by not-yet-rebuilt screens.
+        // Deleted in the final cleanup once every screen is on `stream`.
         bg: { DEFAULT: "#F2EEE1", dark: "#17130B" },
         surface: { DEFAULT: "#FFFDF7", dark: "#211B10" },
         ink: "#241C10",

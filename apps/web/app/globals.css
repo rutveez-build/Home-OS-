@@ -7,6 +7,47 @@
   --brand: 156 95 8;       /* #9C5F08 deep turmeric */
   --brand-soft: 201 138 42;  /* #C98A2A */
   --brand-deep: 122 72 4;  /* #7A4804 */
+
+  /* "Kitchen Stream" tokens (Stitch: HomeOS Kitchen Chat). RGB triplets so
+     Tailwind alpha modifiers work. Light values from the Stitch design
+     system; dark values below are WhatsApp-dark equivalents (the Stitch
+     system is light-only, dark mode is a functional requirement). */
+  --ks-primary: 18 140 126;    /* #128C7E emerald — actions, active states */
+  --ks-on-primary: 255 255 255;
+  --ks-accent: 37 211 102;     /* #25D366 — FAB, success */
+  --ks-header: 18 140 126;     /* header bar (≠ primary in dark) */
+  --ks-on-header: 255 255 255;
+  --ks-bg: 240 242 245;        /* #F0F2F5 app background */
+  --ks-chat: 229 221 213;      /* #E5DDD5 stream background */
+  --ks-surface: 255 255 255;   /* cards, incoming bubbles' kin */
+  --ks-surface-2: 236 238 241; /* #ECEEF1 recessed containers */
+  --ks-bubble-in: 255 255 255;
+  --ks-bubble-out: 220 248 198; /* #DCF8C6 */
+  --ks-ink: 25 28 30;          /* #191C1E primary text */
+  --ks-mute: 102 111 117;      /* secondary text, timestamps */
+  --ks-line: 224 227 230;      /* dividers */
+  --ks-tick: 83 189 235;       /* #53BDEB read-tick blue */
+  --ks-danger: 186 26 26;      /* #BA1A1A */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ks-primary: 0 168 132;   /* #00A884 */
+    --ks-on-primary: 255 255 255;
+    --ks-accent: 0 168 132;
+    --ks-header: 32 44 51;     /* #202C33 */
+    --ks-on-header: 233 237 239;
+    --ks-bg: 17 27 33;         /* #111B21 */
+    --ks-chat: 11 20 26;       /* #0B141A */
+    --ks-surface: 32 44 51;    /* #202C33 */
+    --ks-surface-2: 24 34 40;
+    --ks-bubble-in: 32 44 51;
+    --ks-bubble-out: 0 92 75;  /* #005C4B */
+    --ks-ink: 233 237 239;     /* #E9EDEF */
+    --ks-mute: 134 150 160;    /* #8696A0 */
+    --ks-line: 42 57 66;       /* #2A3942 */
+    --ks-tick: 83 189 235;
+    --ks-danger: 255 180 171;
+  }
 }
 
 html, body {
