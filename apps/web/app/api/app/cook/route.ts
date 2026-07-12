@@ -15,7 +15,7 @@ const Body = z.object({
     .regex(/^\+\d{8,15}$/)
     .optional()
     .or(z.literal("").transform(() => undefined)),
-  language: z.enum(["en", "hi", "kn", "mr", "ta", "te", "bn"]).optional(),
+  language: z.enum(["en", "hi", "kn", "ta", "te", "bn"]).optional(),
   frequency: z.enum(["occasionally", "once_daily", "twice_daily", "thrice_daily", "live_in"]).optional(),
   workingDays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
 });

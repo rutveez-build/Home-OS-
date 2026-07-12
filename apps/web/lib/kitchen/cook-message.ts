@@ -6,7 +6,9 @@ import { getCook, getProfile, latestPlan, planEntries } from "@/db/kitchen-repo"
 import { DAY_NAMES } from "./planner";
 
 const LANG_NAMES: Record<string, string> = {
-  hi: "Hindi", en: "English", kn: "Kannada", mr: "Marathi", ta: "Tamil", te: "Telugu", bn: "Bengali",
+  // "mr" removed from the pickable set; any pre-existing mr cook falls back
+  // to the raw code in the draft prompt rather than crashing.
+  hi: "Hindi", en: "English", kn: "Kannada", ta: "Tamil", te: "Telugu", bn: "Bengali",
 };
 
 export async function draftCookMessage(familyId: string): Promise<

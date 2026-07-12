@@ -382,7 +382,6 @@ export function PrefsStep({
 const LANGS = [
   { code: "hi", label: "हिन्दी" },
   { code: "en", label: "English" },
-  { code: "mr", label: "मराठी" },
   { code: "kn", label: "ಕನ್ನಡ" },
 ];
 const FREQS = [
