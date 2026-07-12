@@ -14,6 +14,7 @@ import { draftCookMessage } from "../kitchen/cook-message";
 import { listFeedback, recordMealFeedback } from "../kitchen/feedback";
 import { generateWeeklyPlan } from "../kitchen/planner";
 import { buildShoppingList } from "../kitchen/shopping";
+import { listInventory, upsertInventoryItem } from "../inventory";
 import { recordKnownDeal } from "../purchases/deals";
 import { recordPurchase } from "../purchases/memory";
 import { findPurchases } from "../purchases/query";
@@ -237,6 +238,31 @@ const handlers: Record<string, ToolHandler> = {
     if (!itemName || !store || price === undefined) return { error: "itemName, store, and price are required." };
     const deal = await recordKnownDeal({ familyId: id.familyId, userId: id.userId, itemName, store, price });
     return { data: { deal } };
+  },
+
+  async list_inventory(_args, id) {
+    const items = await listInventory(id.familyId);
+    return { data: { items } };
+  },
+
+  async update_inventory(args, id) {
+    const name = s(args.name);
+    if (!name) return { error: "name is required." };
+    const expiryDate = s(args.expiryDate);
+    if (expiryDate && !/^\d{4}-\d{2}-\d{2}$/.test(expiryDate)) {
+      return { error: "expiryDate must be YYYY-MM-DD." };
+    }
+    const result = await upsertInventoryItem({
+      familyId: id.familyId,
+      userId: id.userId,
+      name,
+      quantity: s(args.quantity),
+      category: s(args.category),
+      expiryDate,
+      remove: args.remove === true,
+    });
+    if ("error" in result) return { error: result.error };
+    return { data: result };
   },
 };
 
