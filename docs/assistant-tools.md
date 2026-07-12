@@ -38,9 +38,12 @@ with. Onboarding happens on the web app; MCP picks up after.
 | `get_shopping_list()` | `POST /api/app/shopping` | view | Builds once per plan, then returns the saved list |
 | `list_feedback()` | `GET /api/app/feedback` | — (any member) | |
 | `record_feedback(meal, cooked, verdict?, leftovers?, note?)` | `POST /api/app/feedback` | — (any member) | Same as the `/feedback` chat command — no role gate |
+| `log_purchase(store, items[], total, purchaseDate?, subtotal?, tax?)` | `POST /api/app/purchases` | — (any member) | Structured data only — no photo upload over MCP; that's the web app's Purchases tab. Flags likely duplicates, recent re-purchases, and cheaper known deals |
+| `find_purchases(query?)` | `GET /api/app/purchases` | — (any member) | Answers "did we already buy X?" — empty query returns recent purchases |
+| `record_known_deal(itemName, store, price)` | `POST /api/app/deals` | — (any member) | Household-maintained, not scraped — no external price-data source is wired up |
 
 Permission is enforced once, centrally, in `app/api/mcp/route.ts` before any
-handler runs — not left for each of the 11 handlers to remember individually.
+handler runs — not left for each handler to remember individually.
 
 ## Auth
 

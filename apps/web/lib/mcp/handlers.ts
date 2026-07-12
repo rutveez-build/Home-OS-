@@ -14,6 +14,9 @@ import { draftCookMessage } from "../kitchen/cook-message";
 import { listFeedback, recordMealFeedback } from "../kitchen/feedback";
 import { generateWeeklyPlan } from "../kitchen/planner";
 import { buildShoppingList } from "../kitchen/shopping";
+import { recordKnownDeal } from "../purchases/deals";
+import { recordPurchase } from "../purchases/memory";
+import { findPurchases } from "../purchases/query";
 import { getProvider } from "../whatsapp";
 import {
   approvePlan,
@@ -199,6 +202,41 @@ const handlers: Record<string, ToolHandler> = {
       note: s(args.note),
     });
     return { data: res };
+  },
+
+  async log_purchase(args, id) {
+    const store = s(args.store);
+    const total = typeof args.total === "number" ? args.total : undefined;
+    const items = Array.isArray(args.items)
+      ? (args.items as { name: string; quantity?: string; unitPrice?: number; lineTotal?: number }[])
+      : undefined;
+    if (!store || !items?.length || total === undefined) return { error: "store, items, and total are required." };
+    const result = await recordPurchase({
+      familyId: id.familyId,
+      userId: id.userId,
+      source: "assistant",
+      store,
+      purchaseDate: s(args.purchaseDate),
+      items,
+      subtotal: typeof args.subtotal === "number" ? args.subtotal : undefined,
+      tax: typeof args.tax === "number" ? args.tax : undefined,
+      total,
+    });
+    return { data: result };
+  },
+
+  async find_purchases(args, id) {
+    const matches = await findPurchases({ familyId: id.familyId, itemQuery: s(args.query) });
+    return { data: { matches } };
+  },
+
+  async record_known_deal(args, id) {
+    const itemName = s(args.itemName);
+    const store = s(args.store);
+    const price = typeof args.price === "number" ? args.price : undefined;
+    if (!itemName || !store || price === undefined) return { error: "itemName, store, and price are required." };
+    const deal = await recordKnownDeal({ familyId: id.familyId, userId: id.userId, itemName, store, price });
+    return { data: { deal } };
   },
 };
 

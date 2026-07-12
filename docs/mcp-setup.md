@@ -78,8 +78,9 @@ instructions in each tool's description, not just convention.
 
 ## What the connector can and can't do
 
-See `docs/assistant-tools.md` for the full list of 11 tools. In short: it can
+See `docs/assistant-tools.md` for the full list of 14 tools. In short: it can
 read your household state, update preferences, draft and (with your
-approval) send the cook message, build the shopping list, and read/record
-feedback. It cannot place any order, and it cannot act for a different
-household than the one the token was minted for — ever.
+approval) send the cook message, build the shopping list, read/record
+feedback, and log/search purchase history. It cannot place any order, and
+it cannot act for a different household than the one the token was minted
+for — ever.

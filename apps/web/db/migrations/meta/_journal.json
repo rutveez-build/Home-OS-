@@ -57,6 +57,13 @@
       "when": 1783599603617,
       "tag": "0007_clammy_quasar",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783851090761,
+      "tag": "0008_famous_iron_patriot",
+      "breakpoints": true
     }
   ]
 }

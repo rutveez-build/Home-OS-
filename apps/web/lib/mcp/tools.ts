@@ -133,4 +133,47 @@ export const MCP_TOOLS: McpToolDef[] = [
     action: null,
     rest: { method: "POST", path: "/api/app/feedback" },
   },
+  {
+    name: "log_purchase",
+    description:
+      "Log a purchase into the household's purchase memory: store, items, and total (structured data only — this tool doesn't accept a photo; the web app's Purchases tab handles receipt photo uploads). Flags likely duplicates and items bought recently, and notes if a cheaper known deal exists. Open to every household member.",
+    inputShape: {
+      store: z.string().trim().min(1).max(120),
+      purchaseDate: z.string().trim().max(40).optional(),
+      items: z
+        .array(
+          z.object({
+            name: z.string().trim().min(1).max(120),
+            quantity: z.string().trim().max(40).optional(),
+            unitPrice: z.number().nonnegative().optional(),
+            lineTotal: z.number().nonnegative().optional(),
+          })
+        )
+        .min(1)
+        .max(60),
+      subtotal: z.number().nonnegative().optional(),
+      tax: z.number().nonnegative().optional(),
+      total: z.number().nonnegative(),
+    },
+    action: null,
+    rest: { method: "POST", path: "/api/app/purchases" },
+  },
+  {
+    name: "find_purchases",
+    description: "Search purchase history — answers questions like \"did we already buy sugar?\" or \"where did we last buy batteries?\". Leave query empty to see the most recent purchases. Open to every household member.",
+    inputShape: { query: z.string().trim().max(120).optional() },
+    action: null,
+    rest: { method: "GET", path: "/api/app/purchases" },
+  },
+  {
+    name: "record_known_deal",
+    description: "Teach the household a price you saw for an item at a store. Future purchases of that item get compared against it and flagged if this is cheaper. Open to every household member.",
+    inputShape: {
+      itemName: z.string().trim().min(1).max(120),
+      store: z.string().trim().min(1).max(120),
+      price: z.number().nonnegative(),
+    },
+    action: null,
+    rest: { method: "POST", path: "/api/app/deals" },
+  },
 ];

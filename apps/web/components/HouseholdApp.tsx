@@ -41,8 +41,20 @@ type Feedback = {
 
 type Family = { id: string; name: string; role: string } | null;
 
-type Screen = "loading" | "wizard-family" | "wizard-prefs" | "wizard-cook" | "home" | "plan" | "handoff" | "list" | "feedback" | "connect" | "freechat";
+type Screen = "loading" | "wizard-family" | "wizard-prefs" | "wizard-cook" | "home" | "plan" | "handoff" | "list" | "feedback" | "purchases" | "connect" | "freechat";
 type TokenMeta = { id: string; label: string; createdAt: string; lastUsedAt: string | null; revokedAt: string | null };
+
+type PurchaseItem = { id: string; name: string; quantity: string | null; unitPrice: string | null; lineTotal: string | null };
+type Purchase = { id: string; store: string; purchaseDate: string; subtotal: string | null; tax: string | null; total: string; source: string; items: PurchaseItem[] };
+type ReceiptExtraction = {
+  store: string;
+  date?: string;
+  items: { name: string; quantity?: string; unitPrice?: number; lineTotal?: number }[];
+  subtotal?: number;
+  tax?: number;
+  total: number;
+};
+type KnownDeal = { id: string; itemName: string; store: string; price: string; createdAt: string };
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_ORDER: Record<string, number> = { breakfast: 0, lunch: 1, dinner: 2 };
@@ -218,6 +230,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
           />
         )}
         {screen === "feedback" && <FeedbackScreen flash={flash} />}
+        {screen === "purchases" && <PurchasesScreen flash={flash} />}
         {screen === "freechat" && <FreeChat onBack={() => setScreen(plan ? "plan" : "home")} />}
       </div>
     </div>
@@ -238,7 +251,7 @@ function TopBar({ family, screen, setScreen }: { family: Family; screen: Screen;
       </div>
       {!inWizard && (
         <nav className="flex gap-0.5 text-[12px]">
-          {(["home", "plan", "list", "feedback"] as const).map((s) => (
+          {(["home", "plan", "list", "purchases", "feedback"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setScreen(s)}
@@ -246,7 +259,7 @@ function TopBar({ family, screen, setScreen }: { family: Family; screen: Screen;
                 screen === s ? "bg-brand/10 text-brand" : "text-ink/50 dark:text-white/50"
               }`}
             >
-              {s === "home" ? "Home" : s === "plan" ? "Plan" : s === "list" ? "Shopping" : "Feedback"}
+              {s === "home" ? "Home" : s === "plan" ? "Plan" : s === "list" ? "Shopping" : s === "purchases" ? "Purchases" : "Feedback"}
             </button>
           ))}
           <button
@@ -867,6 +880,280 @@ function FeedbackScreen({ flash }: { flash: (m: string) => void }) {
               </p>
               {f.note && <p className="mt-1 text-[13px] italic text-ink/70 dark:text-white/70">“{f.note}”</p>}
             </div>
+          ))}
+        </div>
+      )}
+    </ScreenShell>
+  );
+}
+
+/* ─────────── purchases screen (receipt memory) ─────────── */
+
+// Downscale + re-encode client-side before upload — Vercel serverless
+// functions cap request bodies around 4.5MB, and a raw phone photo (often
+// 3-8MB) plus base64's ~33% overhead would blow past that. Capping the
+// longest side and re-encoding as JPEG keeps this comfortably small.
+function downscaleImage(file: File, maxDim = 1600, quality = 0.72): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Couldn't read that file."));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("That doesn't look like an image."));
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas unavailable."));
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+type DraftItem = { name: string; quantity: string; unitPrice: string; lineTotal: string };
+type Draft = { store: string; date: string; items: DraftItem[]; subtotal: string; tax: string; total: string };
+const EMPTY_DRAFT: Draft = { store: "", date: "", items: [{ name: "", quantity: "", unitPrice: "", lineTotal: "" }], subtotal: "", tax: "", total: "" };
+
+function extractionToDraft(x: ReceiptExtraction): Draft {
+  return {
+    store: x.store,
+    date: x.date ?? "",
+    items: x.items.map((i) => ({
+      name: i.name,
+      quantity: i.quantity ?? "",
+      unitPrice: i.unitPrice !== undefined ? String(i.unitPrice) : "",
+      lineTotal: i.lineTotal !== undefined ? String(i.lineTotal) : "",
+    })),
+    subtotal: x.subtotal !== undefined ? String(x.subtotal) : "",
+    tax: x.tax !== undefined ? String(x.tax) : "",
+    total: String(x.total),
+  };
+}
+
+function PurchasesScreen({ flash }: { flash: (m: string) => void }) {
+  const [history, setHistory] = useState<Purchase[] | null>(null);
+  const [deals, setDeals] = useState<KnownDeal[] | null>(null);
+  const [mode, setMode] = useState<"upload" | "manual" | null>(null);
+  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
+  const [extracting, setExtracting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [query, setQuery] = useState("");
+  const [matches, setMatches] = useState<Array<{ purchase: Purchase; item: PurchaseItem }> | null>(null);
+  const [dealItem, setDealItem] = useState("");
+  const [dealStore, setDealStore] = useState("");
+  const [dealPrice, setDealPrice] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function loadHistory() {
+    const res = await fetch("/api/app/purchases");
+    const data = await res.json().catch(() => ({}));
+    setHistory(data.purchases ?? []);
+  }
+  async function loadDeals() {
+    const res = await fetch("/api/app/deals");
+    const data = await res.json().catch(() => ({}));
+    setDeals(data.deals ?? []);
+  }
+  useEffect(() => { loadHistory(); loadDeals(); }, []);
+
+  async function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setExtracting(true);
+    try {
+      const dataUrl = await downscaleImage(file);
+      const res = await fetch("/api/app/purchases/receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageDataUrl: dataUrl }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { flash(data.error ?? "Couldn't read that receipt."); return; }
+      setDraft(extractionToDraft(data.extraction));
+      setMode("upload");
+    } catch (err) {
+      flash(err instanceof Error ? err.message : "Couldn't process that image.");
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  function updateItem(i: number, patch: Partial<DraftItem>) {
+    setDraft((d) => ({ ...d, items: d.items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)) }));
+  }
+  function addItem() {
+    setDraft((d) => ({ ...d, items: [...d.items, { name: "", quantity: "", unitPrice: "", lineTotal: "" }] }));
+  }
+  function removeItem(i: number) {
+    setDraft((d) => ({ ...d, items: d.items.filter((_, idx) => idx !== i) }));
+  }
+
+  async function savePurchase() {
+    const items = draft.items.filter((it) => it.name.trim()).map((it) => ({
+      name: it.name.trim(),
+      quantity: it.quantity.trim() || undefined,
+      unitPrice: it.unitPrice ? Number(it.unitPrice) : undefined,
+      lineTotal: it.lineTotal ? Number(it.lineTotal) : undefined,
+    }));
+    if (!draft.store.trim()) return flash("Give the store a name.");
+    if (!items.length) return flash("Add at least one item.");
+    if (!draft.total) return flash("Give a total.");
+
+    setSaving(true);
+    const res = await fetch("/api/app/purchases", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        store: draft.store.trim(),
+        purchaseDate: draft.date || undefined,
+        items,
+        subtotal: draft.subtotal ? Number(draft.subtotal) : undefined,
+        tax: draft.tax ? Number(draft.tax) : undefined,
+        total: Number(draft.total),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (!res.ok) return flash(data.error ?? "Couldn't save that purchase.");
+    flash(data.notes?.length ? data.notes.join(" ") : "Purchase logged ✓");
+    setMode(null);
+    setDraft(EMPTY_DRAFT);
+    loadHistory();
+  }
+
+  async function runSearch() {
+    const q = query.trim();
+    if (!q) { setMatches(null); return; }
+    const res = await fetch(`/api/app/purchases?q=${encodeURIComponent(q)}`);
+    const data = await res.json().catch(() => ({}));
+    setMatches(data.matches ?? []);
+  }
+
+  async function addDeal() {
+    if (!dealItem.trim() || !dealStore.trim() || !dealPrice) return flash("Give an item, store, and price.");
+    const res = await fetch("/api/app/deals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemName: dealItem.trim(), store: dealStore.trim(), price: Number(dealPrice) }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return flash(data.error ?? "Couldn't save that deal.");
+    setDealItem(""); setDealStore(""); setDealPrice("");
+    flash("Deal saved ✓");
+    loadDeals();
+  }
+
+  return (
+    <ScreenShell eyebrow="Purchases" title="What did we actually buy?" sub="Upload a receipt or log one manually — search it back later with a plain question.">
+      <div className="rounded-2xl border border-line bg-surface p-4 dark:border-line-dark dark:bg-surface-dark">
+        <div className="flex flex-wrap gap-2">
+          <Chip on={mode === "upload"} onClick={() => fileInputRef.current?.click()}>{extracting ? "Reading…" : "📷 Upload receipt"}</Chip>
+          <Chip on={mode === "manual"} onClick={() => { setMode("manual"); setDraft(EMPTY_DRAFT); }}>✏️ Enter manually</Chip>
+        </div>
+        <input ref={fileInputRef} type="file" accept="image/*" onChange={onFilePicked} className="hidden" />
+
+        {mode && (
+          <div className="mt-4 space-y-3 border-t border-line/60 pt-3 dark:border-line-dark/60">
+            <div className="flex gap-2">
+              <input value={draft.store} onChange={(e) => setDraft((d) => ({ ...d, store: e.target.value }))} placeholder="Store"
+                className="flex-1 rounded-xl border border-line bg-bg px-3 py-2 text-[14px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white" />
+              <input value={draft.date} onChange={(e) => setDraft((d) => ({ ...d, date: e.target.value }))} placeholder="YYYY-MM-DD"
+                className="w-32 rounded-xl border border-line bg-bg px-3 py-2 text-[14px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white" />
+            </div>
+
+            <div className="space-y-1.5">
+              {draft.items.map((it, i) => (
+                <div key={i} className="flex gap-1.5">
+                  <input value={it.name} onChange={(e) => updateItem(i, { name: e.target.value })} placeholder="Item"
+                    className="flex-[2] rounded-xl border border-line bg-bg px-2.5 py-2 text-[13px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white" />
+                  <input value={it.quantity} onChange={(e) => updateItem(i, { quantity: e.target.value })} placeholder="Qty"
+                    className="w-16 rounded-xl border border-line bg-bg px-2 py-2 text-[13px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white" />
+                  <input value={it.lineTotal} onChange={(e) => updateItem(i, { lineTotal: e.target.value })} placeholder="₹"
+                    className="w-16 rounded-xl border border-line bg-bg px-2 py-2 text-[13px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white" />
+                  <button onClick={() => removeItem(i)} className="shrink-0 rounded-xl border border-coral px-2 text-[12px] text-coral">✕</button>
+                </div>
+              ))}
+              <button onClick={addItem} className="text-[12.5px] font-medium text-brand">+ Add item</button>
+            </div>
+
+            <div className="flex gap-2">
+              <input value={draft.subtotal} onChange={(e) => setDraft((d) => ({ ...d, subtotal: e.target.value }))} placeholder="Subtotal"
+                className="flex-1 rounded-xl border border-line bg-bg px-3 py-2 text-[13.5px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white" />
+              <input value={draft.tax} onChange={(e) => setDraft((d) => ({ ...d, tax: e.target.value }))} placeholder="Tax"
+                className="flex-1 rounded-xl border border-line bg-bg px-3 py-2 text-[13.5px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white" />
+              <input value={draft.total} onChange={(e) => setDraft((d) => ({ ...d, total: e.target.value }))} placeholder="Total *"
+                className="flex-1 rounded-xl border border-line bg-bg px-3 py-2 text-[13.5px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white" />
+            </div>
+
+            <PrimaryButton gold onClick={savePurchase} disabled={saving}>{saving ? "Saving…" : "Save purchase"}</PrimaryButton>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-line bg-surface p-4 dark:border-line-dark dark:bg-surface-dark">
+        <label className="block text-[12.5px] font-semibold">Did we already buy…?</label>
+        <div className="mt-1.5 flex gap-2">
+          <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && runSearch()} placeholder="e.g. sugar"
+            className="flex-1 rounded-xl border border-line bg-bg px-3 py-2 text-[14px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white" />
+          <button onClick={runSearch} className="shrink-0 rounded-xl border border-line px-3 text-[12.5px] font-medium dark:border-line-dark">Find</button>
+        </div>
+        {matches !== null && (
+          matches.length === 0 ? (
+            <p className="mt-2 text-[13px] text-ink/55 dark:text-white/55">Nothing found for “{query}”.</p>
+          ) : (
+            <div className="mt-2 space-y-1.5">
+              {matches.map((m) => (
+                <p key={m.item.id} className="text-[13px] text-ink/75 dark:text-white/75">
+                  <strong>{m.item.name}</strong> — {m.purchase.store}, {relativeDay(m.purchase.purchaseDate)} (₹{m.item.lineTotal ?? m.purchase.total})
+                </p>
+              ))}
+            </div>
+          )
+        )}
+      </div>
+
+      <h2 className="mt-6 text-[11px] font-bold uppercase tracking-wider text-brand">Recent purchases</h2>
+      {history === null ? (
+        <ThinkingDots />
+      ) : history.length === 0 ? (
+        <p className="mt-2 text-[13.5px] text-ink/55 dark:text-white/55">Nothing logged yet — upload or enter your first receipt above.</p>
+      ) : (
+        <div className="mt-2 space-y-2">
+          {history.map((p) => (
+            <div key={p.id} className="rounded-2xl border border-line bg-surface p-3.5 dark:border-line-dark dark:bg-surface-dark">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="min-w-0 truncate text-[14px] font-semibold">{p.store}</span>
+                <span className="shrink-0 text-[13px] font-semibold text-brand">₹{p.total}</span>
+              </div>
+              <p className="mt-0.5 text-[11.5px] text-ink/45 dark:text-white/45">{relativeDay(p.purchaseDate)}</p>
+              <p className="mt-1 text-[12.5px] text-ink/65 dark:text-white/65">{p.items.map((it) => it.name).join(", ")}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <h2 className="mt-6 text-[11px] font-bold uppercase tracking-wider text-brand">Known deals</h2>
+      <p className="mt-1 text-[12px] text-ink/55 dark:text-white/55">Manually tracked — teach the household a price you saw, and future purchases get compared against it.</p>
+      <div className="mt-2 flex gap-1.5">
+        <input value={dealItem} onChange={(e) => setDealItem(e.target.value)} placeholder="Item"
+          className="flex-1 rounded-xl border border-line bg-bg px-2.5 py-2 text-[13px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white" />
+        <input value={dealStore} onChange={(e) => setDealStore(e.target.value)} placeholder="Store"
+          className="flex-1 rounded-xl border border-line bg-bg px-2.5 py-2 text-[13px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white" />
+        <input value={dealPrice} onChange={(e) => setDealPrice(e.target.value)} placeholder="₹"
+          className="w-16 rounded-xl border border-line bg-bg px-2 py-2 text-[13px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white" />
+        <button onClick={addDeal} className="shrink-0 rounded-xl border border-line px-2.5 text-[12px] font-medium dark:border-line-dark">Add</button>
+      </div>
+      {deals && deals.length > 0 && (
+        <div className="mt-2 space-y-1">
+          {deals.map((d) => (
+            <p key={d.id} className="text-[12.5px] text-ink/65 dark:text-white/65">{d.itemName} — ₹{d.price} at {d.store}</p>
           ))}
         </div>
       )}

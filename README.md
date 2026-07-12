@@ -29,6 +29,7 @@ pnpm dev   # http://localhost:3000
 | **Chat (web)** | ✅ Working | Streaming Next.js app, mobile-first, onboarding, dark mode |
 | **Persistent memory** | ✅ Working | Postgres + Drizzle. Auto-extracts 0–3 durable facts per exchange |
 | **Kitchen loop** | ✅ Working | Weekly meal plan → your approval → cook message (in the cook's language) → shopping list |
+| **Purchase memory** | ✅ Working | Upload a receipt (web) or log manually, search "did we buy X?", duplicate/recency flags, household-maintained deal alerts. Web-only for now — no WhatsApp receipt capture yet |
 | **WhatsApp chat** | 🟡 Scaffolded | Webhook + send for Meta Cloud API **and** Twilio. Slot in your keys |
 | **Family members** | 🟡 Scaffolded | Create families, invite via WhatsApp, roles. Slash-commands wired |
 | **Voice notes** | 🟡 Scaffolded | ASR abstraction with Sarvam (Indic) + OpenAI Whisper drivers |
@@ -212,6 +213,8 @@ family-os/
 - [ ] Phone-OTP login for the web app (currently anonymous device-id)
 - [ ] More LLM providers (Anthropic, Bedrock, local llama.cpp)
 - [ ] Multi-language welcome screens
+- [ ] WhatsApp receipt capture (purchase memory is web-only today — inbound image → media fetch → the existing extraction pipeline)
+- [ ] Real deal-lookup provider behind `lib/purchases/deals.ts` (household-maintained list today, no external price API)
 
 ---
 

@@ -10,6 +10,7 @@ import { staff } from "./staff";
 import { school } from "./school";
 import { bills } from "./bills";
 import { celebrations } from "./celebrations";
+import { purchases } from "./purchases";
 import type { Skill } from "./types";
 
 export const skills: Skill[] = [
@@ -22,6 +23,7 @@ export const skills: Skill[] = [
   school,
   bills,
   celebrations,
+  purchases,
 ];
 
 export function getSkill(id: string): Skill | undefined {

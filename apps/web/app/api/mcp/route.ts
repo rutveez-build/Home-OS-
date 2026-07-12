@@ -46,7 +46,7 @@ function buildServer(identity: McpIdentity): McpServer {
 
 // Stateless mode requires a fresh transport per request (the SDK enforces
 // this — reusing one throws "Stateless transport cannot be reused across
-// requests"). Registering 12 tool schemas is cheap, no I/O, so rebuilding
+// requests"). Registering the tool schemas is cheap, no I/O, so rebuilding
 // the server per request costs nothing worth optimizing away.
 async function handle(req: Request): Promise<Response> {
   const identity = await resolveIdentity(req);

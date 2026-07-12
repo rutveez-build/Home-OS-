@@ -18,6 +18,7 @@ import {
   jsonb,
   index,
   integer,
+  numeric,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
@@ -312,6 +313,7 @@ export const CONSENT_CATEGORIES = [
   "health_data", // allergies, dietary-medical hints
   "staff_messaging", // sending WhatsApp messages to cook/helpers
   "child_data", // members flagged as children
+  "purchase_data", // receipts and purchase history — can carry payment/financial detail
 ] as const;
 export type ConsentCategory = (typeof CONSENT_CATEGORIES)[number];
 
@@ -334,6 +336,75 @@ export const consents = pgTable(
   (t) => ({
     familyIdx: index("consents_family_idx").on(t.familyId),
     uniq: uniqueIndex("consents_member_category_unique").on(t.familyId, t.userId, t.category),
+  })
+);
+
+/* ─────────── purchase memory (Phase 5) ─────────── */
+// Backward-looking record of what a household actually bought — distinct
+// from shopping_lists, which is forward-looking (what to buy next). Web-only
+// for now: source is 'web' | 'assistant' (MCP), no 'whatsapp' yet — receipt
+// photos come in via a web upload, not WhatsApp media (that integration is
+// deliberately deferred; see lib/purchases/receipt.ts).
+export const purchases = pgTable(
+  "purchases",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    store: text("store").notNull(),
+    purchaseDate: timestamp("purchase_date", { withTimezone: true }).notNull(),
+    currency: text("currency").notNull().default("INR"),
+    subtotal: numeric("subtotal", { precision: 10, scale: 2 }),
+    tax: numeric("tax", { precision: 10, scale: 2 }),
+    total: numeric("total", { precision: 10, scale: 2 }).notNull(),
+    source: text("source").notNull(), // 'web' | 'assistant'
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({ familyIdx: index("purchases_family_idx").on(t.familyId) })
+);
+
+export const purchaseItems = pgTable(
+  "purchase_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    purchaseId: uuid("purchase_id")
+      .notNull()
+      .references(() => purchases.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    normalizedName: text("normalized_name").notNull(), // lowercased+trimmed, for ILIKE search/dedupe
+    quantity: text("quantity"), // free text — receipts use varied units ("1 bag", "2L")
+    unitPrice: numeric("unit_price", { precision: 10, scale: 2 }),
+    lineTotal: numeric("line_total", { precision: 10, scale: 2 }),
+  },
+  (t) => ({
+    purchaseIdx: index("purchase_items_purchase_idx").on(t.purchaseId),
+    nameIdx: index("purchase_items_name_idx").on(t.normalizedName),
+  })
+);
+
+// Household-maintained, not scraped — a member records "saw X for ₹Y at
+// Store" and future purchases of that item get compared against it. No
+// external price-data dependency; swap in a real provider later behind the
+// same lib/purchases/deals.ts interface without touching callers.
+export const knownDeals = pgTable(
+  "known_deals",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    itemName: text("item_name").notNull(),
+    normalizedName: text("normalized_name").notNull(),
+    store: text("store").notNull(),
+    price: numeric("price", { precision: 10, scale: 2 }).notNull(),
+    addedByUserId: uuid("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    familyIdx: index("known_deals_family_idx").on(t.familyId),
+    nameIdx: index("known_deals_name_idx").on(t.normalizedName),
   })
 );
 
@@ -419,6 +490,9 @@ export type AuditEntry = typeof auditLog.$inferSelect;
 export type ShoppingList = typeof shoppingLists.$inferSelect;
 export type Consent = typeof consents.$inferSelect;
 export type MealFeedback = typeof mealFeedback.$inferSelect;
+export type Purchase = typeof purchases.$inferSelect;
+export type PurchaseItem = typeof purchaseItems.$inferSelect;
+export type KnownDeal = typeof knownDeals.$inferSelect;
 export type HouseholdToken = typeof householdTokens.$inferSelect;
 export type OAuthClient = typeof oauthClients.$inferSelect;
 export type OAuthAuthCode = typeof oauthAuthCodes.$inferSelect;
