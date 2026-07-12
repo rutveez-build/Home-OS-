@@ -5,6 +5,7 @@
 // prompt card, quick-entry grid (chat + status), and management rows.
 
 import { Card, CardBanner, Icon, PrimaryButton, SecondaryButton, SectionLabel } from "./kit";
+import { ExpiringSoonCard } from "./InventoryScreen";
 import type { Plan } from "./types";
 
 function greeting(): string {
@@ -25,6 +26,7 @@ export function HomeFeed({
   onOpenChat,
   onOpenConnect,
   onOpenFeedback,
+  onOpenInventory,
 }: {
   userName: string;
   familyName: string;
@@ -36,6 +38,7 @@ export function HomeFeed({
   onOpenChat: () => void;
   onOpenConnect: () => void;
   onOpenFeedback: () => void;
+  onOpenInventory: () => void;
 }) {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-5">
@@ -88,6 +91,8 @@ export function HomeFeed({
           )}
         </div>
       </Card>
+
+      <ExpiringSoonCard onOpenInventory={onOpenInventory} />
 
       {/* Feedback prompt */}
       <Card className="flex flex-col gap-4 p-5">

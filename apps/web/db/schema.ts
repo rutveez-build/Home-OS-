@@ -408,6 +408,31 @@ export const knownDeals = pgTable(
   })
 );
 
+// Kitchen inventory — what's in the pantry/fridge right now. Names are
+// upserted case-insensitively in the route (no expression index; household
+// scale doesn't need one).
+export const inventoryItems = pgTable(
+  "inventory_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    normalizedName: text("normalized_name").notNull(),
+    quantity: text("quantity"),
+    category: text("category").notNull().default("pantry"),
+    expiryDate: timestamp("expiry_date", { withTimezone: true }),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    familyIdx: index("inventory_items_family_idx").on(t.familyId),
+    nameIdx: index("inventory_items_name_idx").on(t.normalizedName),
+  })
+);
+
 /* ─────────── household_tokens (MCP / assistant-surface auth) ─────────── */
 // A bearer token minted from the web app, one household per token, used by
 // external MCP clients (ChatGPT, Claude, Codex). Only the HMAC hash is
@@ -493,6 +518,7 @@ export type MealFeedback = typeof mealFeedback.$inferSelect;
 export type Purchase = typeof purchases.$inferSelect;
 export type PurchaseItem = typeof purchaseItems.$inferSelect;
 export type KnownDeal = typeof knownDeals.$inferSelect;
+export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type HouseholdToken = typeof householdTokens.$inferSelect;
 export type OAuthClient = typeof oauthClients.$inferSelect;
 export type OAuthAuthCode = typeof oauthAuthCodes.$inferSelect;

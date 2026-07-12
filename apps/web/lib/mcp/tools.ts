@@ -179,4 +179,26 @@ export const MCP_TOOLS: McpToolDef[] = [
     action: null,
     rest: { method: "POST", path: "/api/app/deals" },
   },
+  {
+    name: "list_inventory",
+    description:
+      "Read the kitchen inventory — what's in the pantry/fridge, quantities, categories, and expiry dates (soonest-expiring first). Open to every household member.",
+    inputShape: {},
+    action: null,
+    rest: { method: "GET", path: "/api/app/inventory" },
+  },
+  {
+    name: "update_inventory",
+    description:
+      "Add, update, or remove a kitchen inventory item by name. Set quantity/category/expiryDate (YYYY-MM-DD) to add or update; set remove=true to take it out. Open to every household member.",
+    inputShape: {
+      name: z.string().trim().min(1).max(80),
+      quantity: z.string().trim().max(40).optional(),
+      category: z.string().trim().min(1).max(30).optional(),
+      expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      remove: z.boolean().optional(),
+    },
+    action: null,
+    rest: { method: "POST", path: "/api/app/inventory" },
+  },
 ];

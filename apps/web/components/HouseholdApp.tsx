@@ -11,7 +11,6 @@ import {
   TopBar as StreamTopBar,
   TopBarAction,
   BottomNav,
-  EmptyState,
   type NavKey,
 } from "./stream/kit";
 import { WizardBar, FamilyStep, PrefsStep, CookStep } from "./stream/Wizard";
@@ -23,6 +22,7 @@ import { ShoppingScreen } from "./stream/ShoppingScreen";
 import { FeedbackScreen } from "./stream/FeedbackScreen";
 import { PurchasesScreen } from "./stream/PurchasesScreen";
 import { HubScreen } from "./stream/HubScreen";
+import { InventoryScreen } from "./stream/InventoryScreen";
 
 type Member = { name: string; note?: string };
 type Profile = {
@@ -201,6 +201,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
             busy={busy}
             canManage={["owner", "parent", "partner"].includes(family?.role ?? "")}
             onOpenFeedback={() => setScreen("feedback")}
+            onOpenInventory={() => setScreen("inventory")}
             onAsk={async () => {
               setBusy(true);
               const res = await api<{ plan: Plan }>("/api/app/plan", { method: "POST" });
@@ -282,13 +283,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
         )}
         {screen === "feedback" && <FeedbackScreen flash={flash} />}
         {screen === "purchases" && <PurchasesScreen flash={flash} />}
-        {screen === "inventory" && (
-          <EmptyState
-            icon="inventory_2"
-            title="Kitchen inventory is on its way"
-            body="Pantry tracking with expiring-soon alerts lands here shortly."
-          />
-        )}
+        {screen === "inventory" && <InventoryScreen flash={flash} />}
         {screen === "freechat" && <FreeChat onBack={() => setScreen(plan ? "plan" : "home")} />}
       </div>
       {!inWizard && (
