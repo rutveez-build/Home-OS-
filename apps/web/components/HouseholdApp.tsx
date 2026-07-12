@@ -23,6 +23,7 @@ import { FeedbackScreen } from "./stream/FeedbackScreen";
 import { PurchasesScreen } from "./stream/PurchasesScreen";
 import { HubScreen } from "./stream/HubScreen";
 import { InventoryScreen } from "./stream/InventoryScreen";
+import { RecipesScreen } from "./stream/RecipesScreen";
 
 type Member = { name: string; note?: string };
 type Profile = {
@@ -56,7 +57,7 @@ type Feedback = {
 
 type Family = { id: string; name: string; role: string } | null;
 
-type Screen = "loading" | "wizard-family" | "wizard-prefs" | "wizard-cook" | "home" | "plan" | "handoff" | "list" | "feedback" | "purchases" | "inventory" | "hub" | "connect" | "freechat";
+type Screen = "loading" | "wizard-family" | "wizard-prefs" | "wizard-cook" | "home" | "plan" | "handoff" | "list" | "feedback" | "purchases" | "inventory" | "hub" | "recipes" | "connect" | "freechat";
 type TokenMeta = { id: string; label: string; createdAt: string; lastUsedAt: string | null; revokedAt: string | null };
 
 type PurchaseItem = { id: string; name: string; quantity: string | null; unitPrice: string | null; lineTotal: string | null };
@@ -90,6 +91,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
   const [plan, setPlan] = useState<Plan>(null);
   const [shoppingList, setShoppingList] = useState<{ items: ShoppingItem[] } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [recipeQuery, setRecipeQuery] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState("");
 
   async function loadState() {
@@ -128,7 +130,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
 
   const inWizard = screen.startsWith("wizard");
   const navActive: NavKey =
-    screen === "plan" || screen === "handoff" || screen === "list"
+    screen === "plan" || screen === "handoff" || screen === "list" || screen === "recipes"
       ? "plan"
       : screen === "purchases" || screen === "feedback" || screen === "inventory"
         ? screen
@@ -255,6 +257,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
             }}
             onCook={() => setScreen("handoff")}
             onShopping={() => setScreen("list")}
+            onRecipe={(dish) => { setRecipeQuery(dish); setScreen("recipes"); }}
           />
         )}
         {screen === "handoff" && (
@@ -284,6 +287,13 @@ export default function HouseholdApp({ userName }: { userName: string }) {
         {screen === "feedback" && <FeedbackScreen flash={flash} />}
         {screen === "purchases" && <PurchasesScreen flash={flash} />}
         {screen === "inventory" && <InventoryScreen flash={flash} />}
+        {screen === "recipes" && (
+          <RecipesScreen
+            initialQuery={recipeQuery}
+            flash={flash}
+            onBack={() => { setRecipeQuery(undefined); setScreen(plan ? "plan" : "home"); }}
+          />
+        )}
         {screen === "freechat" && <FreeChat onBack={() => setScreen(plan ? "plan" : "home")} />}
       </div>
       {!inWizard && (
@@ -376,6 +386,7 @@ function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: 
   const [label, setLabel] = useState("");
   const [minted, setMinted] = useState<{ token: string; label: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [recipeQuery, setRecipeQuery] = useState<string | undefined>(undefined);
   const [connectClient, setConnectClient] = useState<ConnectClientKey>("claude-cli");
   const mcpUrl = typeof window !== "undefined" ? `${window.location.origin}/api/mcp` : "/api/mcp";
 

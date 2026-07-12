@@ -21,6 +21,7 @@ export function PlanScreen({
   onApprove,
   onCook,
   onShopping,
+  onRecipe,
 }: {
   plan: NonNullable<Plan>;
   busy: boolean;
@@ -28,6 +29,7 @@ export function PlanScreen({
   onApprove: () => void;
   onCook: () => void;
   onShopping: () => void;
+  onRecipe: (dish: string) => void;
 }) {
   const [editing, setEditing] = useState<{ day: number; meal: PlanEntry["meal"] } | null>(null);
   const [draft, setDraft] = useState("");
@@ -93,6 +95,14 @@ export function PlanScreen({
                     </p>
                     <p className="truncate text-[15px] font-medium">{e.dish}</p>
                   </div>
+                  <button
+                    onClick={() => onRecipe(e.dish)}
+                    aria-label={`Recipe for ${e.dish}`}
+                    title="Recipe guide"
+                    className="shrink-0 rounded-full p-1.5 text-stream-mute transition-colors hover:bg-stream-primary/10 hover:text-stream-primary"
+                  >
+                    <Icon name="menu_book" className="text-[18px]" />
+                  </button>
                   {canChange && (
                     <button
                       onClick={() => {

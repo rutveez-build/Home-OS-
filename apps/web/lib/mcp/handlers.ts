@@ -15,6 +15,7 @@ import { listFeedback, recordMealFeedback } from "../kitchen/feedback";
 import { generateWeeklyPlan } from "../kitchen/planner";
 import { buildShoppingList } from "../kitchen/shopping";
 import { listInventory, upsertInventoryItem } from "../inventory";
+import { findRecipes, saveRecipe } from "../recipes";
 import { recordKnownDeal } from "../purchases/deals";
 import { recordPurchase } from "../purchases/memory";
 import { findPurchases } from "../purchases/query";
@@ -260,6 +261,31 @@ const handlers: Record<string, ToolHandler> = {
       category: s(args.category),
       expiryDate,
       remove: args.remove === true,
+    });
+    if ("error" in result) return { error: result.error };
+    return { data: result };
+  },
+
+  async find_recipes(args, id) {
+    const found = await findRecipes(id.familyId, s(args.query));
+    return { data: { recipes: found } };
+  },
+
+  async save_recipe(args, id) {
+    const title = s(args.title);
+    if (!title) return { error: "title is required." };
+    const ingredients = Array.isArray(args.ingredients)
+      ? (args.ingredients as { name: string; qty?: string }[]).filter((i) => typeof i?.name === "string")
+      : undefined;
+    const result = await saveRecipe({
+      familyId: id.familyId,
+      userId: id.userId,
+      title,
+      description: s(args.description),
+      servings: s(args.servings),
+      ingredients,
+      steps: arr(args.steps),
+      tags: arr(args.tags),
     });
     if ("error" in result) return { error: result.error };
     return { data: result };

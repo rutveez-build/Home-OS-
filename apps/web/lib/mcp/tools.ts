@@ -201,4 +201,30 @@ export const MCP_TOOLS: McpToolDef[] = [
     action: null,
     rest: { method: "POST", path: "/api/app/inventory" },
   },
+  {
+    name: "find_recipes",
+    description:
+      "Search the household's saved recipes by dish name or tag; empty query lists the most recent. Returns ingredients and steps. Open to every household member.",
+    inputShape: { query: z.string().trim().max(120).optional() },
+    action: null,
+    rest: { method: "GET", path: "/api/app/recipes" },
+  },
+  {
+    name: "save_recipe",
+    description:
+      "Save or update a household recipe by title: description, servings, ingredients (name + qty), numbered steps, and tags. Same title updates the existing recipe. Open to every household member.",
+    inputShape: {
+      title: z.string().trim().min(1).max(120),
+      description: z.string().trim().max(2000).optional(),
+      servings: z.string().trim().max(40).optional(),
+      ingredients: z
+        .array(z.object({ name: z.string().trim().min(1).max(80), qty: z.string().trim().max(40).optional() }))
+        .max(60)
+        .optional(),
+      steps: z.array(z.string().trim().min(1).max(1000)).max(40).optional(),
+      tags: z.array(z.string().trim().min(1).max(30)).max(10).optional(),
+    },
+    action: null,
+    rest: { method: "POST", path: "/api/app/recipes" },
+  },
 ];

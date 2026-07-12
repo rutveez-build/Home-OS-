@@ -411,6 +411,32 @@ export const knownDeals = pgTable(
 // Kitchen inventory — what's in the pantry/fridge right now. Names are
 // upserted case-insensitively in the route (no expression index; household
 // scale doesn't need one).
+// Household recipes — cook-facing how-to for dishes on the plan. Ingredients
+// and steps are jsonb; search is name-based at household scale.
+export const recipes = pgTable(
+  "recipes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    normalizedTitle: text("normalized_title").notNull(),
+    description: text("description"),
+    servings: text("servings"),
+    ingredients: jsonb("ingredients").$type<{ name: string; qty?: string }[]>().notNull().default([]),
+    steps: jsonb("steps").$type<string[]>().notNull().default([]),
+    tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    familyIdx: index("recipes_family_idx").on(t.familyId),
+    titleIdx: index("recipes_title_idx").on(t.normalizedTitle),
+  })
+);
+
 export const inventoryItems = pgTable(
   "inventory_items",
   {
@@ -519,6 +545,7 @@ export type Purchase = typeof purchases.$inferSelect;
 export type PurchaseItem = typeof purchaseItems.$inferSelect;
 export type KnownDeal = typeof knownDeals.$inferSelect;
 export type InventoryItem = typeof inventoryItems.$inferSelect;
+export type Recipe = typeof recipes.$inferSelect;
 export type HouseholdToken = typeof householdTokens.$inferSelect;
 export type OAuthClient = typeof oauthClients.$inferSelect;
 export type OAuthAuthCode = typeof oauthAuthCodes.$inferSelect;
