@@ -25,7 +25,7 @@ export default function Chat() {
     }).catch(() => {});
   }, [profile]);
 
-  if (!ready) return <div className="h-dvh bg-bg dark:bg-bg-dark" />;
+  if (!ready) return <div className="h-dvh bg-stream-bg" />;
   if (!profile)
     return (
       <Onboarding

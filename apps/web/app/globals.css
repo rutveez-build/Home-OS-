@@ -2,12 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Brand colour via CSS variables — override in your fork. */
+/* Design tokens via CSS variables — override in your fork. */
 :root {
-  --brand: 156 95 8;       /* #9C5F08 deep turmeric */
-  --brand-soft: 201 138 42;  /* #C98A2A */
-  --brand-deep: 122 72 4;  /* #7A4804 */
-
   /* "Kitchen Stream" tokens (Stitch: HomeOS Kitchen Chat). RGB triplets so
      Tailwind alpha modifiers work. Light values from the Stitch design
      system; dark values below are WhatsApp-dark equivalents (the Stitch
@@ -55,15 +51,12 @@
 }
 
 html, body {
-  background: #F2EEE1;
-  color: #241C10;
+  background: rgb(var(--ks-bg));
+  color: rgb(var(--ks-ink));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   scroll-behavior: smooth;
-}
-@media (prefers-color-scheme: dark) {
-  html, body { background: #17130B; color: #F1EBDC; }
 }
 textarea, input, button { -webkit-tap-highlight-color: transparent; }
 .material-symbols-outlined {
@@ -80,7 +73,7 @@ textarea, input, button { -webkit-tap-highlight-color: transparent; }
   direction: ltr;
   font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }
-textarea, input { caret-color: rgb(var(--brand)); }
+textarea, input { caret-color: rgb(var(--ks-primary)); }
 *::-webkit-scrollbar { width: 6px; height: 6px; }
 *::-webkit-scrollbar-thumb {
   background: rgba(36, 28, 16, 0.12);

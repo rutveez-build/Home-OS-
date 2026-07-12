@@ -317,8 +317,8 @@ function Chip({ on, children, onClick }: { on: boolean; children: React.ReactNod
       onClick={onClick}
       className={`rounded-full border px-3.5 py-2 text-[13.5px] font-medium transition ${
         on
-          ? "border-brand bg-brand/10 text-brand"
-          : "border-line bg-surface text-ink/70 dark:border-line-dark dark:bg-surface-dark dark:text-white/70"
+          ? "border-stream-primary bg-stream-primary/10 text-stream-primary"
+          : "border-stream-line bg-stream-surface text-stream-ink/80"
       }`}
     >
       {children}
@@ -329,9 +329,9 @@ function Chip({ on, children, onClick }: { on: boolean; children: React.ReactNod
 function ScreenShell({ eyebrow, title, sub, children }: { eyebrow: string; title: string; sub?: string; children: React.ReactNode }) {
   return (
     <div className="mx-auto max-w-md px-5 pb-10 pt-6">
-      <p className="text-[10.5px] font-bold uppercase tracking-wider text-brand">{eyebrow}</p>
+      <p className="text-[10.5px] font-bold uppercase tracking-wider text-stream-primary">{eyebrow}</p>
       <h1 className="mt-1 text-[24px] font-semibold leading-tight tracking-tight text-balance">{title}</h1>
-      {sub && <p className="mt-1.5 text-[14px] leading-relaxed text-ink/65 dark:text-white/65">{sub}</p>}
+      {sub && <p className="mt-1.5 text-[14px] leading-relaxed text-stream-mute">{sub}</p>}
       <div className="mt-5">{children}</div>
     </div>
   );
@@ -343,7 +343,7 @@ function PrimaryButton({ children, onClick, disabled, gold }: { children: React.
       onClick={onClick}
       disabled={disabled}
       className={`block w-full rounded-2xl py-3.5 text-center text-[15.5px] font-semibold shadow-sm transition active:scale-[0.99] disabled:opacity-50 ${
-        gold ? "bg-brand text-white" : "bg-ink text-bg dark:bg-white dark:text-bg-dark"
+        gold ? "bg-stream-primary text-stream-on-primary" : "bg-stream-primary text-stream-on-primary"
       }`}
     >
       {children}
@@ -353,7 +353,7 @@ function PrimaryButton({ children, onClick, disabled, gold }: { children: React.
 
 function GhostButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="mt-2 block w-full rounded-2xl border border-line py-3 text-center text-[14px] font-medium text-ink/70 dark:border-line-dark dark:text-white/70">
+    <button onClick={onClick} className="mt-2 block w-full rounded-2xl border border-stream-line py-3 text-center text-[14px] font-medium text-stream-ink/80">
       {children}
     </button>
   );
@@ -361,7 +361,7 @@ function GhostButton({ children, onClick }: { children: React.ReactNode; onClick
 
 function ThinkingDots() {
   return (
-    <span className="inline-flex items-center gap-1 text-ink/40 dark:text-white/40">
+    <span className="inline-flex items-center gap-1 text-stream-mute">
       <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-current" />
       <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-current [animation-delay:160ms]" />
       <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-current [animation-delay:320ms]" />

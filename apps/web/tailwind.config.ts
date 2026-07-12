@@ -27,21 +27,6 @@ export default {
           tick: "rgb(var(--ks-tick) / <alpha-value>)",
           danger: "rgb(var(--ks-danger) / <alpha-value>)",
         },
-        // Legacy cream palette — still referenced by not-yet-rebuilt screens.
-        // Deleted in the final cleanup once every screen is on `stream`.
-        bg: { DEFAULT: "#F2EEE1", dark: "#17130B" },
-        surface: { DEFAULT: "#FFFDF7", dark: "#211B10" },
-        ink: "#241C10",
-        // Default brand is a deep turmeric. Override via CSS variables to
-        // rebrand without touching components — see globals.css.
-        brand: {
-          DEFAULT: "rgb(var(--brand) / <alpha-value>)",
-          soft: "rgb(var(--brand-soft) / <alpha-value>)",
-          deep: "rgb(var(--brand-deep) / <alpha-value>)",
-        },
-        accent: "#5B7052",
-        coral: "#A8481F",
-        line: { DEFAULT: "#E1D8C2", dark: "#322A1A" },
       },
       fontFamily: {
         sans: [
