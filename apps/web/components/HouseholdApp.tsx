@@ -16,6 +16,7 @@ import {
 } from "./stream/kit";
 import { WizardBar, FamilyStep, PrefsStep, CookStep } from "./stream/Wizard";
 import { HomeFeed } from "./stream/HomeFeed";
+import { PlanScreen } from "./stream/PlanScreen";
 
 type Member = { name: string; note?: string };
 type Profile = {
@@ -341,89 +342,6 @@ function ThinkingDots() {
       <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-current [animation-delay:160ms]" />
       <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-current [animation-delay:320ms]" />
     </span>
-  );
-}
-
-/* ─────────── plan screen ─────────── */
-
-function PlanScreen({ plan, busy, onChangeEntry, onApprove, onCook, onShopping }: {
-  plan: NonNullable<Plan>; busy: boolean;
-  onChangeEntry: (day: number, meal: PlanEntry["meal"], dish: string) => void;
-  onApprove: () => void; onCook: () => void; onShopping: () => void;
-}) {
-  const [editing, setEditing] = useState<{ day: number; meal: PlanEntry["meal"] } | null>(null);
-  const [draft, setDraft] = useState("");
-  const [editMode, setEditMode] = useState(false);
-  const canChange = plan.status === "draft" || editMode;
-
-  const byDay = new Map<number, PlanEntry[]>();
-  for (const e of plan.entries) byDay.set(e.day, [...(byDay.get(e.day) ?? []), e]);
-  const days = [...byDay.keys()].sort((a, b) => a - b);
-
-  return (
-    <ScreenShell eyebrow={`Weekly plan · ${plan.status === "approved" ? "Approved" : "Awaiting approval"}`} title={`Week of ${plan.weekStart}`} sub={plan.status === "approved" && !editMode ? "Approved — tap Edit plan below to make changes." : "Tap Change beside any meal. Nothing is final until you approve."}>
-      {days.map((d) => (
-        <div key={d} className="mb-2.5 flex gap-3 rounded-2xl border border-line bg-surface p-3.5 dark:border-line-dark dark:bg-surface-dark">
-          <div className="w-11 shrink-0 text-center">
-            <div className="text-[10.5px] font-bold uppercase tracking-wide text-ink/50 dark:text-white/50">{DAY_NAMES[d]}</div>
-          </div>
-          <div className="min-w-0 flex-1 space-y-1.5">
-            {byDay.get(d)!.sort((a, b) => MEAL_ORDER[a.meal] - MEAL_ORDER[b.meal]).map((e) => (
-              <div key={e.meal} className="flex items-baseline gap-2">
-                <span className="w-16 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-ink/45 dark:text-white/45">{MEAL_LABEL[e.meal]}</span>
-                <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{e.dish}</span>
-                {canChange && (
-                  <button onClick={() => { setEditing({ day: d, meal: e.meal }); setDraft(e.dish); }} className="shrink-0 rounded-lg border border-line px-2 py-0.5 text-[10.5px] font-medium text-ink/60 dark:border-line-dark dark:text-white/60">
-                    Change
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-
-      {plan.status === "draft" ? (
-        <div className="mt-4 rounded-2xl border-2 border-brand bg-brand/10 p-4">
-          <p className="text-[14px] font-semibold">Approve this plan?</p>
-          <p className="mt-1 text-[12.5px] text-ink/60 dark:text-white/70">Approving unlocks the daily cook message and the shopping list.</p>
-          <div className="mt-3"><PrimaryButton gold onClick={onApprove} disabled={busy}>{busy ? "Approving…" : "Approve plan ✓"}</PrimaryButton></div>
-        </div>
-      ) : (
-        <div className="mt-4 space-y-2">
-          <button onClick={() => setEditMode((v) => !v)} className={`block w-full rounded-2xl border py-3 text-center text-[14px] font-semibold transition ${editMode ? "border-brand bg-brand/10 text-brand" : "border-line text-ink/70 dark:border-line-dark dark:text-white/70"}`}>
-            {editMode ? "Done editing ✓" : "Edit plan"}
-          </button>
-          <div className="flex gap-2">
-            <div className="flex-1"><PrimaryButton onClick={onCook}>Cook message</PrimaryButton></div>
-            <div className="flex-1"><PrimaryButton onClick={onShopping}>Shopping list</PrimaryButton></div>
-          </div>
-        </div>
-      )}
-
-      {editing && (
-        <div className="fixed inset-0 z-20 flex items-end bg-ink/40 dark:bg-black/50" onClick={(e) => { if (e.target === e.currentTarget) setEditing(null); }}>
-          <div className="w-full rounded-t-3xl bg-surface p-5 dark:bg-surface-dark">
-            <p className="text-[15px] font-semibold">Change {DAY_NAMES[editing.day]}'s {MEAL_LABEL[editing.meal].toLowerCase()}</p>
-            <input
-              autoFocus
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              className="mt-3 block w-full rounded-2xl border border-line bg-bg px-4 py-3 text-[15px] outline-none dark:border-line-dark dark:bg-bg-dark dark:text-white"
-            />
-            <div className="mt-4 flex gap-2">
-              <button onClick={() => setEditing(null)} className="flex-1 rounded-2xl border border-line py-3 text-[14px] font-medium dark:border-line-dark">Cancel</button>
-              <button
-                onClick={() => { onChangeEntry(editing.day, editing.meal, draft); setEditing(null); }}
-                className="flex-1 rounded-2xl bg-brand py-3 text-[14px] font-semibold text-white"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </ScreenShell>
   );
 }
 
