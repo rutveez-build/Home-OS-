@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { sessionUserId } from "@/lib/session";
-import { createFamily, familiesForUser } from "@/db/repo";
+import { createFamily, familiesForUser, listFamilyMembers } from "@/db/repo";
+import { requireFamily, isAuthed } from "@/lib/app-api";
 
 export const runtime = "nodejs";
 
 const Body = z.object({ name: z.string().trim().min(1).max(80) });
+
+export async function GET() {
+  const auth = await requireFamily();
+  if (!isAuthed(auth)) return auth;
+  const members = await listFamilyMembers(auth.familyId);
+  return NextResponse.json({
+    members: members.map((m) => ({
+      name: m.member.displayName ?? m.user.name,
+      role: m.member.role,
+      isYou: m.user.id === auth.userId,
+    })),
+  });
+}
 
 export async function POST(req: NextRequest) {
   const userId = await sessionUserId();

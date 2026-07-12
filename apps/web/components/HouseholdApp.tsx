@@ -22,6 +22,7 @@ import { HandoffScreen } from "./stream/HandoffScreen";
 import { ShoppingScreen } from "./stream/ShoppingScreen";
 import { FeedbackScreen } from "./stream/FeedbackScreen";
 import { PurchasesScreen } from "./stream/PurchasesScreen";
+import { HubScreen } from "./stream/HubScreen";
 
 type Member = { name: string; note?: string };
 type Profile = {
@@ -55,7 +56,7 @@ type Feedback = {
 
 type Family = { id: string; name: string; role: string } | null;
 
-type Screen = "loading" | "wizard-family" | "wizard-prefs" | "wizard-cook" | "home" | "plan" | "handoff" | "list" | "feedback" | "purchases" | "inventory" | "connect" | "freechat";
+type Screen = "loading" | "wizard-family" | "wizard-prefs" | "wizard-cook" | "home" | "plan" | "handoff" | "list" | "feedback" | "purchases" | "inventory" | "hub" | "connect" | "freechat";
 type TokenMeta = { id: string; label: string; createdAt: string; lastUsedAt: string | null; revokedAt: string | null };
 
 type PurchaseItem = { id: string; name: string; quantity: string | null; unitPrice: string | null; lineTotal: string | null };
@@ -143,7 +144,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
           actions={
             <>
               <TopBarAction icon="forum" label="Assistant chat" onClick={() => setScreen("freechat")} />
-              <TopBarAction icon="settings" label="Household settings" onClick={() => setScreen("connect")} />
+              <TopBarAction icon="settings" label="Household settings" onClick={() => setScreen("hub")} />
             </>
           }
         />
@@ -172,7 +173,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
               setBusy(false);
               if (res.ok && res.data) {
                 setProfile(res.data.profile);
-                setScreen("wizard-cook");
+                setScreen(cook ? "home" : "wizard-cook");
               } else flash(res.error ?? "Couldn't save preferences");
             }}
           />
@@ -211,6 +212,18 @@ export default function HouseholdApp({ userName }: { userName: string }) {
             }}
             onOpenPlan={() => setScreen("plan")}
             onOpenChat={() => setScreen("freechat")}
+            onOpenConnect={() => setScreen("connect")}
+          />
+        )}
+        {screen === "hub" && family && (
+          <HubScreen
+            family={family}
+            profile={profile}
+            cook={cook}
+            canManage={["owner", "parent", "partner"].includes(family?.role ?? "")}
+            flash={flash}
+            onEditPrefs={() => setScreen("wizard-prefs")}
+            onEditCook={() => setScreen("wizard-cook")}
             onOpenConnect={() => setScreen("connect")}
           />
         )}
