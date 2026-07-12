@@ -18,6 +18,7 @@ import { WizardBar, FamilyStep, PrefsStep, CookStep } from "./stream/Wizard";
 import { HomeFeed } from "./stream/HomeFeed";
 import { PlanScreen } from "./stream/PlanScreen";
 import { HandoffScreen } from "./stream/HandoffScreen";
+import { ShoppingScreen } from "./stream/ShoppingScreen";
 
 type Member = { name: string; note?: string };
 type Profile = {
@@ -249,9 +250,10 @@ export default function HouseholdApp({ userName }: { userName: string }) {
           />
         )}
         {screen === "list" && (
-          <ListScreen
+          <ShoppingScreen
             shoppingList={shoppingList}
             busy={busy}
+            flash={flash}
             onLoad={async () => {
               setBusy(true);
               const res = await api<{ items: ShoppingItem[] }>("/api/app/shopping", { method: "POST" });
@@ -343,51 +345,6 @@ function ThinkingDots() {
       <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-current [animation-delay:160ms]" />
       <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-current [animation-delay:320ms]" />
     </span>
-  );
-}
-
-/* ─────────── shopping list screen ─────────── */
-
-function ListScreen({ shoppingList, busy, onLoad, onBack }: {
-  shoppingList: { items: ShoppingItem[] } | null; busy: boolean; onLoad: () => void; onBack: () => void;
-}) {
-  useEffect(() => {
-    if (!shoppingList) onLoad();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const byCat = new Map<string, ShoppingItem[]>();
-  for (const i of shoppingList?.items ?? []) byCat.set(i.category, [...(byCat.get(i.category) ?? []), i]);
-
-  function copyAll() {
-    const text = [...byCat.entries()]
-      .map(([cat, items]) => `${cat.toUpperCase()}\n` + items.map((i) => `• ${i.name} — ${i.qty}${i.substitute ? ` (sub: ${i.substitute})` : ""}`).join("\n"))
-      .join("\n\n");
-    navigator.clipboard?.writeText(text).catch(() => {});
-  }
-
-  return (
-    <ScreenShell eyebrow="Shopping list" title={`${shoppingList?.items.length ?? 0} items, grouped for quick-commerce`} sub="Built from the approved plan. Copy it into Blinkit, Zepto or Instamart — we never order on our own.">
-      {busy && !shoppingList ? (
-        <ThinkingDots />
-      ) : (
-        <>
-          {[...byCat.entries()].map(([cat, items]) => (
-            <div key={cat} className="mb-4">
-              <h3 className="text-[11px] font-bold uppercase tracking-wider text-brand">{cat}</h3>
-              {items.map((i) => (
-                <div key={i.name} className="flex items-baseline justify-between border-b border-dashed border-line py-1.5 text-[14px] dark:border-line-dark">
-                  <span>{i.name}{i.substitute && <span className="ml-1.5 block text-[11px] text-ink/50 dark:text-white/50">substitute OK: {i.substitute}</span>}</span>
-                  <span className="shrink-0 tabular-nums text-ink/60 dark:text-white/60">{i.qty}</span>
-                </div>
-              ))}
-            </div>
-          ))}
-          <PrimaryButton gold onClick={copyAll}>Copy list for Blinkit / Zepto</PrimaryButton>
-        </>
-      )}
-      <GhostButton onClick={onBack}>← Back to plan</GhostButton>
-    </ScreenShell>
   );
 }
 
