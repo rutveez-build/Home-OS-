@@ -55,6 +55,7 @@ export default {
       boxShadow: {
         bubble: "0 1px 2px rgba(21,23,26,0.04), 0 1px 1px rgba(21,23,26,0.02)",
         sheet: "0 -8px 30px rgba(21,23,26,0.10)",
+        card: "0 1px 0.5px rgba(0,0,0,0.13)", // Kitchen Stream card/bubble rest shadow
       },
       animation: {
         "bubble-in": "bubble-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1)",
