@@ -15,6 +15,7 @@ import {
   type NavKey,
 } from "./stream/kit";
 import { WizardBar, FamilyStep, PrefsStep, CookStep } from "./stream/Wizard";
+import { HomeFeed } from "./stream/HomeFeed";
 
 type Member = { name: string; note?: string };
 type Profile = {
@@ -186,12 +187,13 @@ export default function HouseholdApp({ userName }: { userName: string }) {
           />
         )}
         {screen === "home" && (
-          <HomeScreen
+          <HomeFeed
             userName={userName}
             familyName={family?.name ?? "your household"}
             plan={plan}
             busy={busy}
             canManage={["owner", "parent", "partner"].includes(family?.role ?? "")}
+            onOpenFeedback={() => setScreen("feedback")}
             onAsk={async () => {
               setBusy(true);
               const res = await api<{ plan: Plan }>("/api/app/plan", { method: "POST" });
@@ -339,34 +341,6 @@ function ThinkingDots() {
       <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-current [animation-delay:160ms]" />
       <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-current [animation-delay:320ms]" />
     </span>
-  );
-}
-
-/* ─────────── home screen ─────────── */
-
-function HomeScreen({ userName, familyName, plan, busy, canManage, onAsk, onOpenPlan, onOpenChat, onOpenConnect }: {
-  userName: string; familyName: string; plan: Plan; busy: boolean; canManage: boolean;
-  onAsk: () => void; onOpenPlan: () => void; onOpenChat: () => void; onOpenConnect: () => void;
-}) {
-  return (
-    <ScreenShell eyebrow="Home" title={`Good to see you, ${userName}`} sub={`${familyName} · here whenever you need anything.`}>
-      {plan?.status === "approved" ? (
-        <div className="rounded-2xl border border-line bg-surface p-4 dark:border-line-dark dark:bg-surface-dark">
-          <p className="text-[14px] font-semibold">This week's plan is approved ✓</p>
-          <p className="mt-1 text-[13px] text-ink/60 dark:text-white/60">Week of {plan.weekStart}</p>
-          <div className="mt-3"><PrimaryButton onClick={onOpenPlan}>View plan</PrimaryButton></div>
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-line bg-surface p-4 dark:border-line-dark dark:bg-surface-dark">
-          <p className="text-[15px] leading-relaxed">Give me a second and I'll draft a plan from your household profile — diets, allergies, and everything else you told me.</p>
-          <div className="mt-3">
-            <PrimaryButton gold onClick={onAsk} disabled={busy}>{busy ? "Drafting your plan…" : "What should we cook this week?"}</PrimaryButton>
-          </div>
-        </div>
-      )}
-      <GhostButton onClick={onOpenChat}>Ask me anything else →</GhostButton>
-      {canManage && <GhostButton onClick={onOpenConnect}>Connect ChatGPT, Claude, or Codex →</GhostButton>}
-    </ScreenShell>
   );
 }
 
