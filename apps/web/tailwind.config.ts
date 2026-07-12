@@ -20,6 +20,7 @@ export default {
           "surface-2": "rgb(var(--ks-surface-2) / <alpha-value>)",
           "bubble-in": "rgb(var(--ks-bubble-in) / <alpha-value>)",
           "bubble-out": "rgb(var(--ks-bubble-out) / <alpha-value>)",
+          "on-bubble-out": "rgb(var(--ks-on-bubble-out) / <alpha-value>)",
           ink: "rgb(var(--ks-ink) / <alpha-value>)",
           mute: "rgb(var(--ks-mute) / <alpha-value>)",
           line: "rgb(var(--ks-line) / <alpha-value>)",

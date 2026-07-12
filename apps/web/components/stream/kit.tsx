@@ -329,7 +329,7 @@ export function Bubble({
     <div
       className={`max-w-[78%] px-3 py-2 text-[15px] leading-snug shadow-card ${
         isOut
-          ? "self-end rounded-xl rounded-tr-none bg-stream-bubble-out"
+          ? "self-end rounded-xl rounded-tr-none bg-stream-bubble-out text-stream-on-bubble-out"
           : "self-start rounded-xl rounded-tl-none bg-stream-bubble-in"
       } ${className}`}
     >

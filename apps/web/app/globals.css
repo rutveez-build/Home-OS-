@@ -28,26 +28,28 @@
   --ks-line: 224 227 230;      /* dividers */
   --ks-tick: 83 189 235;       /* #53BDEB read-tick blue */
   --ks-danger: 186 26 26;      /* #BA1A1A */
+  --ks-on-bubble-out: 25 28 30; /* text on outgoing bubbles */
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Dark is derived from the same emerald hue as the light DS —
-       green-tinted near-blacks, not WhatsApp's blue-grays. */
-    --ks-primary: 0 168 132;   /* #00A884 */
-    --ks-on-primary: 255 255 255;
-    --ks-accent: 0 168 132;
-    --ks-header: 16 31 28;     /* #101F1C */
-    --ks-on-header: 229 237 234;
-    --ks-bg: 10 20 18;         /* #0A1412 */
-    --ks-chat: 7 15 13;        /* #070F0D */
-    --ks-surface: 21 33 30;    /* #15211E */
-    --ks-surface-2: 15 26 23;
-    --ks-bubble-in: 21 33 30;
-    --ks-bubble-out: 0 80 71;  /* #005047 */
-    --ks-ink: 229 237 234;     /* #E5EDEA */
-    --ks-mute: 140 155 150;
-    --ks-line: 42 58 54;       /* #2A3A36 */
-    --ks-tick: 83 189 235;
+    /* Dark = the user's Stitch "Obsidian Culinary" system, taken from the
+       dark-mode screens: obsidian canvas, slate layers, soft-teal accents. */
+    --ks-primary: 114 216 200;   /* #72D8C8 */
+    --ks-on-primary: 0 55 49;    /* #003731 */
+    --ks-accent: 114 216 200;
+    --ks-header: 19 27 46;       /* #131B2E surface-container-low */
+    --ks-on-header: 218 226 253; /* #DAE2FD */
+    --ks-bg: 2 6 23;             /* #020617 */
+    --ks-chat: 2 6 23;
+    --ks-surface: 15 23 42;      /* #0F172A level-1 card */
+    --ks-surface-2: 19 27 46;    /* #131B2E */
+    --ks-bubble-in: 15 23 42;    /* #0F172A */
+    --ks-bubble-out: 52 161 146; /* #34A192 primary-container */
+    --ks-on-bubble-out: 0 48 42; /* #00302A */
+    --ks-ink: 218 226 253;       /* #DAE2FD */
+    --ks-mute: 189 201 197;      /* #BDC9C5 */
+    --ks-line: 30 41 59;         /* #1E293B */
+    --ks-tick: 114 216 200;
     --ks-danger: 255 180 171;
   }
 }
