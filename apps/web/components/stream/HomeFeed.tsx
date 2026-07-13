@@ -120,15 +120,15 @@ export function HomeFeed({
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-stream-primary/10 text-stream-primary">
             <Icon name="menu_book" />
           </div>
-          <h4 className="text-sm font-semibold">Recipe guide</h4>
-          <p className="text-[12.5px] text-stream-mute">What&apos;s the recipe for the food items?</p>
+          <span className="block text-sm font-semibold">Recipe guide</span>
+          <span className="block text-[12.5px] text-stream-mute">What&apos;s the recipe for the food items?</span>
         </Card>
         <Card onClick={onAskRecipe} className="group flex w-full flex-col gap-2 p-4 text-left">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-stream-accent/10 text-stream-primary">
             <Icon name="tips_and_updates" />
           </div>
-          <h4 className="text-sm font-semibold">Alter a recipe</h4>
-          <p className="text-[12.5px] text-stream-mute">Chat for swaps, healthier or spicier versions.</p>
+          <span className="block text-sm font-semibold">Alter a recipe</span>
+          <span className="block text-[12.5px] text-stream-mute">Chat for swaps, healthier or spicier versions.</span>
         </Card>
       </div>
 
@@ -140,7 +140,7 @@ export function HomeFeed({
               <Icon name="star" />
             </div>
             <div className="flex-1">
-              <h4 className="text-sm font-semibold">How was your last meal?</h4>
+              <span className="block text-sm font-semibold">How was your last meal?</span>
               <p className="text-[13px] text-stream-mute">
                 Rate your last dinner to improve future suggestions.
               </p>
@@ -164,10 +164,10 @@ export function HomeFeed({
             <Icon name="chat" />
           </div>
           <div>
-            <h4 className="text-sm font-semibold">Ask me anything else</h4>
-            <p className="text-[13px] text-stream-mute">
+            <span className="block text-sm font-semibold">Ask me anything else</span>
+            <span className="block text-[13px] text-stream-mute">
               Check pantry stock, dietary notes, or meal history.
-            </p>
+            </span>
           </div>
           <Icon
             name="arrow_forward"
@@ -187,7 +187,7 @@ export function HomeFeed({
                 <Icon name="manage_accounts" />
               </div>
               <div>
-                <h4 className="text-sm font-semibold">Update Home Setup</h4>
+                <span className="block text-sm font-semibold">Update Home Setup</span>
                 <p className="text-[13px] text-stream-mute">
                   Manage members, roles, and kitchen preferences.
                 </p>

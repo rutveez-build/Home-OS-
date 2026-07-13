@@ -83,9 +83,9 @@ export function HubScreen({
               <Avatar name={cook.name} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[15px] font-semibold">{cook.name}</p>
-                <p className="text-[12.5px] text-stream-mute">
+                <span className="block text-[12.5px] text-stream-mute">
                   {cook.phone ?? "No WhatsApp number"} · {cook.language}
-                </p>
+                </span>
               </div>
             </>
           ) : (
@@ -190,8 +190,8 @@ export function HubScreen({
                 <Icon name="hub" />
               </div>
               <div>
-                <h4 className="text-sm font-semibold">Connect ChatGPT, Claude, or Codex</h4>
-                <p className="text-[12.5px] text-stream-mute">Tokens, OAuth clients, and revocation.</p>
+                <span className="block text-sm font-semibold">Connect ChatGPT, Claude, or Codex</span>
+                <span className="block text-[12.5px] text-stream-mute">Tokens, OAuth clients, and revocation.</span>
               </div>
             </div>
             <Icon name="arrow_forward" className="text-stream-mute transition-transform group-hover:translate-x-1" />

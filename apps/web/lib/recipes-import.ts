@@ -5,6 +5,7 @@
 // ponytail: caption-based only — videos without captions can't be imported;
 // a vision/audio pipeline is the upgrade path if that ever matters.
 
+import { z } from "zod";
 import { llm, LLM_MODEL_FAST } from "./llm";
 
 export function parseYouTubeId(url: string): string | null {
@@ -55,7 +56,20 @@ export async function fetchYouTubeTranscript(videoId: string): Promise<Transcrip
     tracks.find((t) => t.kind !== "asr") ??
     tracks[0];
 
-  const capRes = await fetch(`${track.baseUrl}&fmt=json3`).catch(() => null);
+  // The caption URL comes from the upstream response — don't treat it as
+  // trusted. Pin it to YouTube over https and refuse redirects, so a crafted
+  // or compromised response can't steer the server anywhere else (SSRF).
+  let capUrl: URL;
+  try {
+    capUrl = new URL(`${track.baseUrl}&fmt=json3`);
+  } catch {
+    return { error: "YouTube returned an unusable caption URL." };
+  }
+  const capHost = capUrl.hostname;
+  if (capUrl.protocol !== "https:" || !(capHost === "youtube.com" || capHost.endsWith(".youtube.com"))) {
+    return { error: "YouTube returned an unexpected caption source." };
+  }
+  const capRes = await fetch(capUrl, { redirect: "error" }).catch(() => null);
   if (!capRes?.ok) return { error: "Couldn't download the video's captions." };
   const cap = (await capRes.json().catch(() => null)) as {
     events?: { segs?: { utf8?: string }[] }[];
@@ -101,21 +115,36 @@ Rules: steps are imperative and self-contained; keep quantities exactly as spoke
     });
     const raw = res.choices?.[0]?.message?.content?.trim() ?? "";
     const jsonText = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
-    const parsed = JSON.parse(jsonText) as ExtractedRecipe & { error?: string };
-    if (parsed.error) return { error: "That video doesn't look like a recipe." };
-    if (!parsed.title || !Array.isArray(parsed.steps) || !parsed.steps.length) {
-      return { error: "Couldn't find a usable recipe in that video." };
+    let candidate: unknown;
+    try {
+      candidate = JSON.parse(jsonText);
+    } catch {
+      return { error: "The model returned unusable output — try that video again." };
     }
+    if (candidate && typeof candidate === "object" && "error" in candidate) {
+      return { error: "That video doesn't look like a recipe." };
+    }
+    const Shape = z.object({
+      title: z.coerce.string().trim().min(1).max(120),
+      description: z.coerce.string().trim().max(2000).optional().nullable(),
+      servings: z.coerce.string().trim().max(40).optional().nullable(),
+      ingredients: z
+        .array(z.object({ name: z.coerce.string().trim().min(1).max(80), qty: z.coerce.string().trim().max(40).optional().nullable() }))
+        .max(60)
+        .catch([]),
+      steps: z.array(z.coerce.string().trim().min(1).max(1000)).min(1).max(40),
+      tags: z.array(z.coerce.string().trim().min(1).max(30)).max(10).catch([]),
+    });
+    const checked = Shape.safeParse(candidate);
+    if (!checked.success) return { error: "Couldn't find a usable recipe in that video." };
+    const r = checked.data;
     return {
-      title: String(parsed.title).slice(0, 120),
-      description: parsed.description ? String(parsed.description).slice(0, 2000) : undefined,
-      servings: parsed.servings ? String(parsed.servings).slice(0, 40) : undefined,
-      ingredients: (parsed.ingredients ?? [])
-        .filter((i) => i && typeof i.name === "string")
-        .slice(0, 60)
-        .map((i) => ({ name: i.name.slice(0, 80), qty: i.qty ? String(i.qty).slice(0, 40) : undefined })),
-      steps: parsed.steps.filter((s) => typeof s === "string").slice(0, 40).map((s) => s.slice(0, 1000)),
-      tags: (parsed.tags ?? []).filter((t) => typeof t === "string").slice(0, 10).map((t) => t.slice(0, 30)),
+      title: r.title,
+      description: r.description || undefined,
+      servings: r.servings || undefined,
+      ingredients: r.ingredients.map((i) => ({ name: i.name, qty: i.qty || undefined })),
+      steps: r.steps,
+      tags: r.tags,
     };
   } catch (err) {
     console.error("[recipes-import] extraction failed", err);

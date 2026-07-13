@@ -9,12 +9,24 @@ export const maxDuration = 60; // transcript + LLM extraction can be slow
 
 const Body = z.object({ url: z.string().trim().url().max(300) });
 
+// ponytail: in-process per-family cooldown — enough to stop hammering the
+// YouTube fetch + LLM call at household scale; move to a store if this ever
+// runs multi-instance.
+const lastImport = new Map<string, number>();
+const IMPORT_COOLDOWN_MS = 15_000;
+
 export async function POST(req: NextRequest) {
   const auth = await requireFamily();
   if (!isAuthed(auth)) return auth;
 
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Give a valid YouTube URL." }, { status: 400 });
+
+  const last = lastImport.get(auth.familyId) ?? 0;
+  if (Date.now() - last < IMPORT_COOLDOWN_MS) {
+    return NextResponse.json({ error: "One import at a time — try again in a few seconds." }, { status: 429 });
+  }
+  lastImport.set(auth.familyId, Date.now());
 
   const videoId = parseYouTubeId(parsed.data.url);
   if (!videoId) return NextResponse.json({ error: "That doesn't look like a YouTube link." }, { status: 400 });
