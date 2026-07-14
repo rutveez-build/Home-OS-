@@ -177,13 +177,34 @@ export async function fetchYouTubeTranscript(videoId: string): Promise<Transcrip
     if (transcript) return { title: title ?? "Untitled video", transcript: transcript.slice(0, 16000) };
   }
 
+  // Strategy D (env-gated): a transcript API with residential egress —
+  // YouTube bot-walls datacenter IPs, so direct fetching from serverless
+  // hosts fails intermittently or always. Free tier at supadata.ai; set
+  // YT_TRANSCRIPT_API_KEY to light this up.
+  const apiKey = process.env.YT_TRANSCRIPT_API_KEY;
+  if (apiKey) {
+    const res = await fetch(
+      `https://api.supadata.ai/v1/youtube/transcript?videoId=${encodeURIComponent(videoId)}&text=true`,
+      { headers: { "x-api-key": apiKey } }
+    ).catch(() => null);
+    if (res?.ok) {
+      const data = (await res.json().catch(() => null)) as { content?: string } | null;
+      const transcript = (data?.content ?? "").replace(/\s+/g, " ").trim();
+      if (transcript) return { title: title ?? "Untitled video", transcript: transcript.slice(0, 16000) };
+    }
+  }
+
   if (sawOkNoTracks && !page.tracks.length && !legacy.length) {
     return { error: "That video has no captions — the importer needs them to read the recipe." };
   }
   if (sawUnplayable) {
     return { error: "YouTube wouldn't serve that video to the importer — check the link, or try again in a minute." };
   }
-  return { error: "YouTube is blocking the server right now — try again shortly, or paste the recipe as a note instead." };
+  return {
+    error: apiKey
+      ? "Couldn\u2019t fetch that video\u2019s captions — try again shortly, or paste the recipe as a note."
+      : "YouTube is blocking the server right now — paste the recipe as a note instead, or configure YT_TRANSCRIPT_API_KEY (see .env.example).",
+  };
 }
 
 export type ExtractedRecipe = {
