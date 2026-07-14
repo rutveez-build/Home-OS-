@@ -18,7 +18,7 @@ export async function GET() {
   }
 
   const weekAgo = new Date(Date.now() - 7 * 86400000);
-  const [allUsers, memberships, msgCounts, [{ signups7d }]] = await Promise.all([
+  const [allUsers, memberships, msgCounts, [{ signups7d }], [{ totalUsers, withEmail }], [{ inFamilies }]] = await Promise.all([
     db.select().from(users).orderBy(desc(users.createdAt)).limit(500),
     db
       .select({
@@ -34,23 +34,21 @@ export async function GET() {
       .innerJoin(sessions, eq(messages.sessionId, sessions.id))
       .groupBy(sessions.userId),
     db.select({ signups7d: sql<number>`count(*)::int` }).from(users).where(gte(users.createdAt, weekAgo)),
+    db.select({ totalUsers: sql<number>`count(*)::int`, withEmail: sql<number>`count(email)::int` }).from(users),
+    db.select({ inFamilies: sql<number>`count(distinct user_id)::int` }).from(familyMembers),
   ]);
 
-  const memberOf = new Map(memberships.map((m) => [m.userId, m]));
+  // First membership wins deterministically (multi-family users exist in schema).
+  const memberOf = new Map<string, (typeof memberships)[number]>();
+  for (const m of memberships) if (!memberOf.has(m.userId)) memberOf.set(m.userId, m);
   const msgs = new Map(msgCounts.map((m) => [m.userId, m.count]));
 
   return NextResponse.json({
-    totals: {
-      users: allUsers.length,
-      signups7d,
-      withEmail: allUsers.filter((u) => u.email).length,
-      inFamilies: allUsers.filter((u) => memberOf.has(u.id)).length,
-    },
+    totals: { users: totalUsers, signups7d, withEmail, inFamilies },
     users: allUsers.map((u) => ({
       id: u.id,
       name: u.name,
       email: u.email,
-      phone: u.phone,
       language: u.language,
       createdAt: u.createdAt,
       lastSeenAt: u.lastSeenAt,

@@ -209,7 +209,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
             onOpenFeedback={() => setScreen("feedback")}
             onOpenInventory={() => setScreen("inventory")}
             onOpenHub={() => setScreen("hub")}
-            onOpenRecipes={() => { setRecipeQuery(undefined); setScreen("recipes"); }}
+            onOpenRecipes={() => { setRecipeQuery(undefined); setRecipesAdding(false); setScreen("recipes"); }}
             onAskRecipe={() => { setChatPrefill("What's the recipe for "); setScreen("freechat"); }}
             onAsk={async () => {
               setBusy(true);
@@ -264,7 +264,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
             }}
             onCook={() => setScreen("handoff")}
             onShopping={() => setScreen("list")}
-            onRecipe={(dish) => { setRecipeQuery(dish); setScreen("recipes"); }}
+            onRecipe={(dish) => { setRecipeQuery(dish); setRecipesAdding(false); setScreen("recipes"); }}
             onAddRecipe={() => { setRecipeQuery(undefined); setRecipesAdding(true); setScreen("recipes"); }}
           />
         )}

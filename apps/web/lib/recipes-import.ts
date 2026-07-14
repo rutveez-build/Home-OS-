@@ -75,6 +75,25 @@ function parseCaptionBody(body: string): string {
 
 type CaptionTrack = { baseUrl: string; languageCode: string; kind?: string };
 
+const FETCH_TIMEOUT_MS = 8000;
+
+/** Read a response body with a hard byte cap — an upstream that streams
+ * gigabytes must not exhaust a serverless worker. */
+async function boundedText(res: Response, maxBytes: number): Promise<string> {
+  const reader = res.body?.getReader();
+  if (!reader) return (await res.text()).slice(0, maxBytes);
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (total < maxBytes) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    total += value.byteLength;
+  }
+  reader.cancel().catch(() => {});
+  return new TextDecoder().decode(Buffer.concat(chunks.map((c) => Buffer.from(c)))).slice(0, maxBytes);
+}
+
 function pickTrack(tracks: CaptionTrack[]): CaptionTrack {
   return (
     tracks.find((t) => t.kind !== "asr" && t.languageCode.startsWith("en")) ??
@@ -94,9 +113,9 @@ async function fetchTrack(baseUrl: string): Promise<string> {
   }
   const host = capUrl.hostname;
   if (capUrl.protocol !== "https:" || !(host === "youtube.com" || host.endsWith(".youtube.com"))) return "";
-  const res = await fetch(capUrl, { redirect: "error" }).catch(() => null);
+  const res = await fetch(capUrl, { redirect: "error", signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).catch(() => null);
   if (!res?.ok) return "";
-  return parseCaptionBody(await res.text()).replace(/\s+/g, " ").trim();
+  return parseCaptionBody(await boundedText(res, 1_500_000)).replace(/\s+/g, " ").trim();
 }
 
 /** Strategy B: the public watch page embeds ytInitialPlayerResponse — often
@@ -107,9 +126,10 @@ async function tracksFromWatchPage(videoId: string): Promise<{ title?: string; t
       "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
       "Accept-Language": "en-US,en;q=0.9",
     },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   }).catch(() => null);
   if (!res?.ok) return { tracks: [] };
-  const html = await res.text();
+  const html = await boundedText(res, 3_000_000);
   const m = html.match(/"captionTracks":(\[.*?\])[,}]/);
   const t = html.match(/<title>([^<]*)<\/title>/);
   if (!m) return { title: t?.[1], tracks: [] };
@@ -122,9 +142,11 @@ async function tracksFromWatchPage(videoId: string): Promise<{ title?: string; t
 
 /** Strategy C: the legacy timedtext list API — no innertube session at all. */
 async function tracksFromTimedtextList(videoId: string): Promise<CaptionTrack[]> {
-  const res = await fetch(`https://www.youtube.com/api/timedtext?type=list&v=${videoId}`).catch(() => null);
+  const res = await fetch(`https://www.youtube.com/api/timedtext?type=list&v=${videoId}`, {
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  }).catch(() => null);
   if (!res?.ok) return [];
-  const xml = await res.text();
+  const xml = await boundedText(res, 500_000);
   return [...xml.matchAll(/<track[^>]*lang_code="([^"]+)"[^>]*?(kind="([^"]*)")?[^>]*\/>/g)].map((m) => ({
     baseUrl: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${m[1]}${m[3] ? `&kind=${m[3]}` : ""}`,
     languageCode: m[1],

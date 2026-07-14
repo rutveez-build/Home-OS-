@@ -9,7 +9,6 @@ type AdminUser = {
   id: string;
   name: string;
   email: string | null;
-  phone: string | null;
   language: string;
   createdAt: string;
   lastSeenAt: string;
