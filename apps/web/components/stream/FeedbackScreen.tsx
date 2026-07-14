@@ -5,7 +5,7 @@
 // chip answers, then history as resting cards. Same API wiring as before.
 
 import { useEffect, useState } from "react";
-import { Card, CardBanner, Chip, EmptyState, PrimaryButton, SectionLabel, Spinner } from "./kit";
+import { Card, CardBanner, Chip, EmptyState, PrimaryButton, SectionLabel, Spinner, ScreenHero } from "./kit";
 import { MEAL_LABEL, type Feedback } from "./types";
 
 const VERDICTS = [
@@ -74,10 +74,10 @@ export function FeedbackScreen({ flash }: { flash: (m: string) => void }) {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-5">
-      <section className="px-1">
-        <h2 className="text-xl font-semibold">What&apos;s working, what&apos;s not</h2>
-        <p className="text-sm text-stream-mute">A quick note after any meal teaches next week&apos;s plan.</p>
-      </section>
+      <ScreenHero
+        title="What's working, what's not"
+        sub="A quick note after any meal teaches next week's plan."
+      />
 
       <Card className="overflow-hidden">
         <CardBanner icon="star" label="Rate a meal" />

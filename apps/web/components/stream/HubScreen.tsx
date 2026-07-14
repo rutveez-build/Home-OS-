@@ -6,7 +6,7 @@
 // invite form and edit actions.
 
 import { useEffect, useState } from "react";
-import { Avatar, Card, CardBanner, Chip, Icon, PrimaryButton, SectionLabel, Spinner } from "./kit";
+import { Avatar, Card, CardBanner, Chip, Icon, PrimaryButton, SectionLabel, Spinner, ScreenHero } from "./kit";
 import type { Cook, Family, Profile } from "./types";
 
 type MemberRow = { name: string; role: string; isYou: boolean };
@@ -68,10 +68,7 @@ export function HubScreen({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-5">
-      <section className="px-1">
-        <h2 className="text-xl font-semibold">Manage household</h2>
-        <p className="text-sm text-stream-mute">{family.name} · you are {family.role}</p>
-      </section>
+      <ScreenHero title="Manage household" sub={`${family.name} · you are ${family.role}`} />
 
       {/* Current setup */}
       <SectionLabel>Current setup</SectionLabel>

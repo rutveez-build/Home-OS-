@@ -5,7 +5,7 @@
 // banner card, deliberately the loudest element on the screen.
 
 import { useState } from "react";
-import { Card, CardBanner, Chip, Icon, PrimaryButton, SecondaryButton } from "./kit";
+import { Card, CardBanner, Chip, Icon, PrimaryButton, SecondaryButton, ScreenHero } from "./kit";
 import { DAY_NAMES, MEAL_LABEL, MEAL_ORDER, type Plan, type PlanEntry } from "./types";
 
 const MEAL_ICONS: Record<string, string> = {
@@ -42,21 +42,21 @@ export function PlanScreen({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-5">
-      <section className="flex items-center justify-between px-1">
-        <div>
-          <h2 className="text-xl font-semibold">Week of {plan.weekStart}</h2>
-          <p className="text-sm text-stream-mute">
-            {plan.status === "approved"
-              ? editMode
-                ? "Editing the approved plan — changes save immediately."
-                : "Approved. Tap Edit below to make changes."
-              : "Nothing is final until you approve."}
-          </p>
-        </div>
-        <Chip icon={plan.status === "approved" ? "check_circle" : "hourglass_top"} active={plan.status === "approved"}>
-          {plan.status === "approved" ? "Approved" : "Draft"}
-        </Chip>
-      </section>
+      <ScreenHero
+        title={`Week of ${plan.weekStart}`}
+        sub={
+          plan.status === "approved"
+            ? editMode
+              ? "Editing the approved plan — changes save immediately."
+              : "Approved. Tap Edit below to make changes."
+            : "Nothing is final until you approve."
+        }
+        trailing={
+          <Chip icon={plan.status === "approved" ? "check_circle" : "hourglass_top"} active={plan.status === "approved"}>
+            {plan.status === "approved" ? "Approved" : "Draft"}
+          </Chip>
+        }
+      />
 
       {/* Approval — the unmissable moment */}
       {plan.status === "draft" && (

@@ -190,6 +190,32 @@ export function Screen({
   );
 }
 
+/** Screen header on the themed hero art wash — used across all top-level
+ * screens for a consistent premium opening. Assumes the parent canvas has
+ * px-4 py-5 (negative margins bleed the art to the edges). */
+export function ScreenHero({
+  title,
+  sub,
+  trailing,
+}: {
+  title: string;
+  sub?: string;
+  trailing?: ReactNode;
+}) {
+  return (
+    <section className="art-hero relative -mx-4 -mt-5 px-5 pb-5 pt-6">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-stream-bg/40 to-stream-bg" />
+      <div className="relative flex items-end justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-semibold">{title}</h2>
+          {sub && <p className="text-sm text-stream-mute">{sub}</p>}
+        </div>
+        {trailing && <div className="shrink-0">{trailing}</div>}
+      </div>
+    </section>
+  );
+}
+
 /* ── cards ─────────────────────────────────────────────────────────── */
 
 export function Card({

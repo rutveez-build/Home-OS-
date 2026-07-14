@@ -6,7 +6,7 @@
 // All handlers and API wiring carried over from the cream version.
 
 import { useEffect, useRef, useState } from "react";
-import { Card, CardBanner, Chip, EmptyState, Icon, PrimaryButton, SectionLabel, Spinner } from "./kit";
+import { Card, CardBanner, Chip, EmptyState, Icon, PrimaryButton, SectionLabel, Spinner, ScreenHero } from "./kit";
 import { relativeDay } from "./types";
 
 type PurchaseItem = { id: string; name: string; quantity: string | null; unitPrice: string | null; lineTotal: string | null };
@@ -199,12 +199,10 @@ export function PurchasesScreen({ flash }: { flash: (m: string) => void }) {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-5">
-      <section className="px-1">
-        <h2 className="text-xl font-semibold">What did we actually buy?</h2>
-        <p className="text-sm text-stream-mute">
-          Upload a receipt or log one manually — search it back later with a plain question.
-        </p>
-      </section>
+      <ScreenHero
+        title="What did we actually buy?"
+        sub="Upload a receipt or log one manually — search it back later with a plain question."
+      />
 
       {/* Capture */}
       <Card className="overflow-hidden">

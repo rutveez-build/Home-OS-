@@ -6,7 +6,7 @@
 // aid; the source of truth stays the approved plan.
 
 import { useEffect, useState } from "react";
-import { Card, CheckToggle, Chip, EmptyState, Icon, PrimaryButton, SecondaryButton, Spinner } from "./kit";
+import { Card, CheckToggle, Chip, EmptyState, Icon, PrimaryButton, SecondaryButton, Spinner, ScreenHero } from "./kit";
 import type { ShoppingItem } from "./types";
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -75,12 +75,10 @@ export function ShoppingScreen({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-5">
-      <section className="px-1">
-        <h2 className="text-xl font-semibold">Shopping list</h2>
-        <p className="text-sm text-stream-mute">
-          Built from the approved plan. We never order on our own.
-        </p>
-      </section>
+      <ScreenHero
+        title="Shopping list"
+        sub="Built from the approved plan. We never order on our own."
+      />
 
       {busy && !shoppingList ? (
         <Spinner label="Building the list from your plan…" />

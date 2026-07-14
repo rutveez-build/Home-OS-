@@ -5,7 +5,7 @@
 // add/update form. Backed by /api/app/inventory (shared with the MCP tools).
 
 import { useEffect, useState } from "react";
-import { Card, CardBanner, Chip, EmptyState, Icon, PrimaryButton, SectionLabel, Spinner } from "./kit";
+import { Card, CardBanner, Chip, EmptyState, Icon, PrimaryButton, SectionLabel, Spinner, ScreenHero } from "./kit";
 
 export type InventoryRow = {
   id: string;
@@ -106,12 +106,10 @@ export function InventoryScreen({ flash }: { flash: (m: string) => void }) {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-5">
-      <section className="px-1">
-        <h2 className="text-xl font-semibold">Kitchen inventory</h2>
-        <p className="text-sm text-stream-mute">
-          What&apos;s actually in the house — the assistant plans around it.
-        </p>
-      </section>
+      <ScreenHero
+        title="Kitchen inventory"
+        sub="What's actually in the house — the assistant plans around it."
+      />
 
       {/* Add / update */}
       <Card className="overflow-hidden">
