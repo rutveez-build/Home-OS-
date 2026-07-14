@@ -73,10 +73,71 @@ function parseCaptionBody(body: string): string {
   return texts.join(" ");
 }
 
+type CaptionTrack = { baseUrl: string; languageCode: string; kind?: string };
+
+function pickTrack(tracks: CaptionTrack[]): CaptionTrack {
+  return (
+    tracks.find((t) => t.kind !== "asr" && t.languageCode.startsWith("en")) ??
+    tracks.find((t) => t.languageCode.startsWith("en")) ??
+    tracks.find((t) => t.kind !== "asr") ??
+    tracks[0]
+  );
+}
+
+/** Fetch + parse a caption track URL (validated: https, youtube.com only). */
+async function fetchTrack(baseUrl: string): Promise<string> {
+  let capUrl: URL;
+  try {
+    capUrl = new URL(baseUrl.includes("fmt=") ? baseUrl : `${baseUrl}&fmt=json3`);
+  } catch {
+    return "";
+  }
+  const host = capUrl.hostname;
+  if (capUrl.protocol !== "https:" || !(host === "youtube.com" || host.endsWith(".youtube.com"))) return "";
+  const res = await fetch(capUrl, { redirect: "error" }).catch(() => null);
+  if (!res?.ok) return "";
+  return parseCaptionBody(await res.text()).replace(/\s+/g, " ").trim();
+}
+
+/** Strategy B: the public watch page embeds ytInitialPlayerResponse — often
+ * still served to datacenter IPs when the innertube API is stripped. */
+async function tracksFromWatchPage(videoId: string): Promise<{ title?: string; tracks: CaptionTrack[] }> {
+  const res = await fetch(`https://www.youtube.com/watch?v=${videoId}&hl=en`, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+  }).catch(() => null);
+  if (!res?.ok) return { tracks: [] };
+  const html = await res.text();
+  const m = html.match(/"captionTracks":(\[.*?\])[,}]/);
+  const t = html.match(/<title>([^<]*)<\/title>/);
+  if (!m) return { title: t?.[1], tracks: [] };
+  try {
+    return { title: t?.[1]?.replace(/ - YouTube$/, ""), tracks: JSON.parse(m[1]) as CaptionTrack[] };
+  } catch {
+    return { title: t?.[1], tracks: [] };
+  }
+}
+
+/** Strategy C: the legacy timedtext list API — no innertube session at all. */
+async function tracksFromTimedtextList(videoId: string): Promise<CaptionTrack[]> {
+  const res = await fetch(`https://www.youtube.com/api/timedtext?type=list&v=${videoId}`).catch(() => null);
+  if (!res?.ok) return [];
+  const xml = await res.text();
+  return [...xml.matchAll(/<track[^>]*lang_code="([^"]+)"[^>]*?(kind="([^"]*)")?[^>]*\/>/g)].map((m) => ({
+    baseUrl: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${m[1]}${m[3] ? `&kind=${m[3]}` : ""}`,
+    languageCode: m[1],
+    kind: m[3],
+  }));
+}
+
 export async function fetchYouTubeTranscript(videoId: string): Promise<TranscriptResult> {
   let sawUnplayable = false;
   let sawOkNoTracks = false;
+  let title: string | undefined;
 
+  // Strategy A: innertube API clients (works from residential IPs).
   for (const { client } of PLAYER_CLIENTS) {
     const res = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
       method: "POST",
@@ -84,10 +145,10 @@ export async function fetchYouTubeTranscript(videoId: string): Promise<Transcrip
       body: JSON.stringify({ context: { client }, videoId }),
     }).catch(() => null);
     if (!res?.ok) continue;
-
     const data = (await res.json().catch(() => null)) as PlayerResponse | null;
     const status = data?.playabilityStatus?.status;
     const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+    title = title ?? data?.videoDetails?.title;
     if (status !== "OK") {
       sawUnplayable = true;
       continue;
@@ -96,41 +157,33 @@ export async function fetchYouTubeTranscript(videoId: string): Promise<Transcrip
       sawOkNoTracks = true;
       continue;
     }
-
-    // Prefer a human track, then English, then whatever exists.
-    const track =
-      tracks.find((t) => t.kind !== "asr" && t.languageCode.startsWith("en")) ??
-      tracks.find((t) => t.languageCode.startsWith("en")) ??
-      tracks.find((t) => t.kind !== "asr") ??
-      tracks[0];
-
-    // The caption URL comes from the upstream response — don't treat it as
-    // trusted. Pin it to YouTube over https and refuse redirects (SSRF).
-    let capUrl: URL;
-    try {
-      capUrl = new URL(`${track.baseUrl}&fmt=json3`);
-    } catch {
-      continue;
-    }
-    const capHost = capUrl.hostname;
-    if (capUrl.protocol !== "https:" || !(capHost === "youtube.com" || capHost.endsWith(".youtube.com"))) {
-      continue;
-    }
-    const capRes = await fetch(capUrl, { redirect: "error" }).catch(() => null);
-    if (!capRes?.ok) continue;
-
-    const transcript = parseCaptionBody(await capRes.text()).replace(/\s+/g, " ").trim();
-    if (!transcript) continue;
-
-    return {
-      title: data?.videoDetails?.title ?? "Untitled video",
-      transcript: transcript.slice(0, 16000),
-    };
+    const transcript = await fetchTrack(pickTrack(tracks).baseUrl);
+    if (transcript) return { title: title ?? "Untitled video", transcript: transcript.slice(0, 16000) };
   }
 
-  if (sawOkNoTracks) return { error: "That video has no captions — the importer needs them to read the recipe." };
-  if (sawUnplayable) return { error: "YouTube wouldn't serve that video to the importer — check the link, or try again in a minute." };
-  return { error: "Couldn't fetch captions from YouTube right now — try again, or paste the recipe as a note instead." };
+  // Strategy B: scrape the public watch page (datacenter IPs often still get
+  // full HTML when the API response is stripped).
+  const page = await tracksFromWatchPage(videoId);
+  title = title ?? page.title;
+  if (page.tracks.length) {
+    const transcript = await fetchTrack(pickTrack(page.tracks).baseUrl);
+    if (transcript) return { title: title ?? "Untitled video", transcript: transcript.slice(0, 16000) };
+  }
+
+  // Strategy C: legacy timedtext list API.
+  const legacy = await tracksFromTimedtextList(videoId);
+  if (legacy.length) {
+    const transcript = await fetchTrack(pickTrack(legacy).baseUrl);
+    if (transcript) return { title: title ?? "Untitled video", transcript: transcript.slice(0, 16000) };
+  }
+
+  if (sawOkNoTracks && !page.tracks.length && !legacy.length) {
+    return { error: "That video has no captions — the importer needs them to read the recipe." };
+  }
+  if (sawUnplayable) {
+    return { error: "YouTube wouldn't serve that video to the importer — check the link, or try again in a minute." };
+  }
+  return { error: "YouTube is blocking the server right now — try again shortly, or paste the recipe as a note instead." };
 }
 
 export type ExtractedRecipe = {
