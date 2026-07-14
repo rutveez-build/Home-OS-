@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
@@ -51,6 +52,9 @@ export async function POST(req: NextRequest) {
     if (existing) {
       return NextResponse.json({ error: "That email already has an account — log in instead." }, { status: 409 });
     }
+    if (master && body.email === master.email) {
+      return NextResponse.json({ error: "That email is reserved — log in instead." }, { status: 409 });
+    }
     // Email verification: the domain must be able to receive mail (MX/A
     // lookup). Blocks typos and junk domains; the master test account is
     // exempt so the login loop stays testable.
@@ -89,7 +93,16 @@ export async function POST(req: NextRequest) {
   // + MASTER_TEST_PASSWORD are configured, that email always logs in with
   // that password — regardless of stored state, auto-created on first use.
   // Exists so the operator can re-verify the login loop repeatedly.
-  if (master && body.email === master.email && body.password === master.password) {
+  if (master && body.email === master.email) {
+    // Timing-safe compare (hash both sides to equalize length first).
+    const given = createHash("sha256").update(body.password).digest();
+    const expected = createHash("sha256").update(master.password).digest();
+    if (!timingSafeEqual(given, expected)) {
+      // While the master account is enabled, the master password is the ONLY
+      // way into this email — a squatter who signed the address up earlier
+      // with their own password is locked out, not silently co-tenanting.
+      return NextResponse.json({ error: "Wrong email or password." }, { status: 401 });
+    }
     let user = await db.query.users.findFirst({ where: eq(users.email, master.email) });
     if (!user) {
       [user] = await db
