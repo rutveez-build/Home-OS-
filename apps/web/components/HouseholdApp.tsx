@@ -94,6 +94,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
   const [busy, setBusy] = useState(false);
   const [recipeQuery, setRecipeQuery] = useState<string | undefined>(undefined);
   const [chatPrefill, setChatPrefill] = useState<string | undefined>(undefined);
+  const [recipesAdding, setRecipesAdding] = useState(false);
   const [notice, setNotice] = useState("");
 
   async function loadState() {
@@ -264,6 +265,7 @@ export default function HouseholdApp({ userName }: { userName: string }) {
             onCook={() => setScreen("handoff")}
             onShopping={() => setScreen("list")}
             onRecipe={(dish) => { setRecipeQuery(dish); setScreen("recipes"); }}
+            onAddRecipe={() => { setRecipeQuery(undefined); setRecipesAdding(true); setScreen("recipes"); }}
           />
         )}
         {screen === "handoff" && (
@@ -296,8 +298,9 @@ export default function HouseholdApp({ userName }: { userName: string }) {
         {screen === "recipes" && (
           <RecipesScreen
             initialQuery={recipeQuery}
+            initialAdding={recipesAdding}
             flash={flash}
-            onBack={() => { setRecipeQuery(undefined); setScreen(plan ? "plan" : "home"); }}
+            onBack={() => { setRecipeQuery(undefined); setRecipesAdding(false); setScreen(plan ? "plan" : "home"); }}
           />
         )}
         {screen === "freechat" && <FreeChat initialInput={chatPrefill} onBack={() => { setChatPrefill(undefined); setScreen(plan ? "plan" : "home"); }} />}
@@ -394,6 +397,7 @@ function ConnectScreen({ flash, onBack }: { flash: (m: string) => void; onBack: 
   const [busy, setBusy] = useState(false);
   const [recipeQuery, setRecipeQuery] = useState<string | undefined>(undefined);
   const [chatPrefill, setChatPrefill] = useState<string | undefined>(undefined);
+  const [recipesAdding, setRecipesAdding] = useState(false);
   const [connectClient, setConnectClient] = useState<ConnectClientKey>("claude-cli");
   const mcpUrl = typeof window !== "undefined" ? `${window.location.origin}/api/mcp` : "/api/mcp";
 

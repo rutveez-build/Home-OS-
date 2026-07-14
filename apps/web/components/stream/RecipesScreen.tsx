@@ -4,7 +4,7 @@
 // expand into ingredients + numbered steps, plus a save/update form. Backed
 // by /api/app/recipes (shared with find_recipes / save_recipe MCP tools).
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardBanner, Chip, EmptyState, Icon, PrimaryButton, SectionLabel, Spinner } from "./kit";
 
 type Recipe = {
@@ -23,17 +23,19 @@ const inputCls =
 
 export function RecipesScreen({
   initialQuery,
+  initialAdding,
   flash,
   onBack,
 }: {
   initialQuery?: string;
+  initialAdding?: boolean;
   flash: (m: string) => void;
   onBack: () => void;
 }) {
   const [query, setQuery] = useState(initialQuery ?? "");
   const [recipes, setRecipes] = useState<Recipe[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(initialAdding ?? false);
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState(initialQuery ?? "");
   const [servings, setServings] = useState("");
@@ -41,6 +43,9 @@ export function RecipesScreen({
   const [stepsText, setStepsText] = useState("");
   const [ytUrl, setYtUrl] = useState("");
   const [importing, setImporting] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [importingNote, setImportingNote] = useState(false);
 
   async function load(q?: string) {
     const url = q?.trim() ? `/api/app/recipes?q=${encodeURIComponent(q.trim())}` : "/api/app/recipes";
@@ -89,6 +94,55 @@ export function RecipesScreen({
     setIngredientsText("");
     setStepsText("");
     load(query);
+  }
+
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+
+  async function importNotePayload(body: Record<string, string>, kind: string) {
+    setImportingNote(true);
+    const res = await fetch("/api/app/recipes/import-note", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    setImportingNote(false);
+    if (!res.ok) return flash(data.error ?? `Couldn't import that ${kind}.`);
+    flash(`Imported "${data.recipe.title}" ✓`);
+    setNoteText("");
+    load(query);
+  }
+
+  function importNote() {
+    if (noteText.trim().length < 30) return flash("Paste the full recipe note first.");
+    importNotePayload({ text: noteText.trim() }, "note");
+  }
+
+  function onPdfPicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) return flash("PDF is too large — keep it under 4MB.");
+    const reader = new FileReader();
+    reader.onload = () =>
+      importNotePayload({ pdfDataUrl: String(reader.result), title: file.name.replace(/\.pdf$/i, "") }, "PDF");
+    reader.onerror = () => flash("Couldn't read that file.");
+    reader.readAsDataURL(file);
+  }
+
+  async function generateWithAI(dish: string) {
+    if (!dish.trim()) return flash("Name the dish first.");
+    setGenerating(true);
+    const res = await fetch("/api/app/recipes/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dish: dish.trim() }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setGenerating(false);
+    if (!res.ok) return flash(data.error ?? "Couldn't generate that recipe.");
+    flash(`Generated "${data.recipe.title}" ✓ — review it before the cook uses it.`);
+    load(dish);
   }
 
   async function importFromYouTube() {
@@ -143,7 +197,7 @@ export function RecipesScreen({
       </div>
 
       <Card className="overflow-hidden">
-        <CardBanner icon="smart_display" label="Add from YouTube" />
+        <CardBanner icon="download" label="Import a recipe" />
         <div className="flex flex-col gap-2 p-4">
           <div className="flex gap-2">
             <input
@@ -162,9 +216,37 @@ export function RecipesScreen({
             </button>
           </div>
           <p className="text-[11.5px] text-stream-mute">
-            I read the video&apos;s captions and turn them into a saved recipe — ingredients,
-            steps, servings. Needs a captioned video and an LLM key on the server.
+            YouTube: I read the video&apos;s captions and turn them into a saved recipe.
           </p>
+
+          <div className="my-1 flex items-center gap-3 text-[11px] font-bold uppercase tracking-widest text-stream-mute">
+            <span className="h-px flex-1 bg-stream-line" /> or <span className="h-px flex-1 bg-stream-line" />
+          </div>
+
+          <textarea
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            placeholder={"Paste a recipe note — from Google Keep, Notes, WhatsApp, anywhere.\nShare → copy → paste here."}
+            rows={3}
+            className={`${inputCls} resize-y`}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={importNote}
+              disabled={importingNote}
+              className="flex-1 rounded-xl bg-stream-primary py-2.5 text-[13px] font-bold uppercase tracking-wide text-stream-on-primary disabled:opacity-50"
+            >
+              {importingNote ? "Importing…" : "Import note"}
+            </button>
+            <button
+              onClick={() => pdfInputRef.current?.click()}
+              disabled={importingNote}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-stream-primary/20 bg-stream-primary/5 py-2.5 text-[13px] font-bold uppercase tracking-wide text-stream-primary disabled:opacity-50"
+            >
+              <Icon name="picture_as_pdf" className="text-[16px]" /> Upload PDF
+            </button>
+          </div>
+          <input ref={pdfInputRef} type="file" accept="application/pdf" onChange={onPdfPicked} className="hidden" />
         </div>
       </Card>
 
@@ -193,7 +275,11 @@ export function RecipesScreen({
             <PrimaryButton icon="save" onClick={save} disabled={saving}>
               {saving ? "Saving…" : "Save recipe"}
             </PrimaryButton>
-            <p className="text-[11.5px] text-stream-mute">Same title updates the existing recipe.</p>
+            <p className="text-[11.5px] text-stream-mute">
+              Same title updates the existing recipe. Prefer not to type? The <strong>Import a
+              recipe</strong> card above takes a YouTube link, a pasted note, or a PDF — or use
+              Generate with AI from search.
+            </p>
           </div>
         </Card>
       )}
@@ -201,11 +287,22 @@ export function RecipesScreen({
       {recipes === null ? (
         <Spinner label="Loading recipes…" />
       ) : recipes.length === 0 ? (
-        <EmptyState
-          icon="menu_book"
-          title={query ? `No recipes for "${query}"` : "No recipes yet"}
-          body="Save one above, or ask the assistant to save a recipe for any dish on the plan."
-        />
+        <div className="flex flex-col items-center gap-3">
+          <EmptyState
+            icon="menu_book"
+            title={query ? `No recipes for "${query}"` : "No recipes yet"}
+            body={
+              query
+                ? "The AI can write a home-style recipe for it — respecting your household's diets and allergies."
+                : "Save one above, or ask the assistant to save a recipe for any dish on the plan."
+            }
+          />
+          {query && (
+            <PrimaryButton icon="auto_awesome" onClick={() => generateWithAI(query)} disabled={generating}>
+              {generating ? "Writing the recipe…" : `Generate "${query}" with AI`}
+            </PrimaryButton>
+          )}
+        </div>
       ) : (
         <>
           <SectionLabel>

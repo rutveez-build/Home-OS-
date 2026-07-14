@@ -26,63 +26,111 @@ export function parseYouTubeId(url: string): string | null {
 
 type TranscriptResult = { title: string; transcript: string } | { error: string };
 
+type PlayerResponse = {
+  playabilityStatus?: { status?: string };
+  videoDetails?: { title?: string };
+  captions?: {
+    playerCaptionsTracklistRenderer?: { captionTracks?: { baseUrl: string; languageCode: string; kind?: string }[] };
+  };
+};
+
+// Innertube clients differ: IOS honors fmt=json3, ANDROID ignores it and
+// returns timedtext XML, WEB is often blocked from datacenter IPs. Try IOS
+// first, fall back to ANDROID, and parse whichever body shape comes back.
+const PLAYER_CLIENTS: { name: string; client: Record<string, unknown> }[] = [
+  { name: "IOS", client: { clientName: "IOS", clientVersion: "20.10.4", deviceModel: "iPhone16,2", hl: "en" } },
+  { name: "ANDROID", client: { clientName: "ANDROID", clientVersion: "20.10.38", androidSdkVersion: 30, hl: "en" } },
+];
+
+function decodeEntities(t: string): string {
+  return t
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)));
+}
+
+function parseCaptionBody(body: string): string {
+  const trimmed = body.trim();
+  if (trimmed.startsWith("{")) {
+    // json3
+    try {
+      const cap = JSON.parse(trimmed) as { events?: { segs?: { utf8?: string }[] }[] };
+      return (cap.events ?? [])
+        .flatMap((e) => e.segs ?? [])
+        .map((seg) => seg.utf8 ?? "")
+        .join(" ");
+    } catch {
+      return "";
+    }
+  }
+  // timedtext XML: <text ...>content</text> or <p ...>content</p>
+  const texts = [...trimmed.matchAll(/<(?:text|p)\b[^>]*>([\s\S]*?)<\/(?:text|p)>/g)].map((m) =>
+    decodeEntities(m[1].replace(/<[^>]+>/g, " "))
+  );
+  return texts.join(" ");
+}
+
 export async function fetchYouTubeTranscript(videoId: string): Promise<TranscriptResult> {
-  const res = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "User-Agent": "com.google.android.youtube/20.10.38 (Linux; U; Android 11)" },
-    body: JSON.stringify({
-      context: {
-        client: { clientName: "ANDROID", clientVersion: "20.10.38", androidSdkVersion: 30, hl: "en" },
-      },
-      videoId,
-    }),
-  }).catch(() => null);
-  if (!res?.ok) return { error: "Couldn't reach YouTube for that video." };
+  let sawUnplayable = false;
+  let sawOkNoTracks = false;
 
-  const data = (await res.json().catch(() => null)) as {
-    videoDetails?: { title?: string };
-    captions?: {
-      playerCaptionsTracklistRenderer?: { captionTracks?: { baseUrl: string; languageCode: string; kind?: string }[] };
+  for (const { client } of PLAYER_CLIENTS) {
+    const res = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ context: { client }, videoId }),
+    }).catch(() => null);
+    if (!res?.ok) continue;
+
+    const data = (await res.json().catch(() => null)) as PlayerResponse | null;
+    const status = data?.playabilityStatus?.status;
+    const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+    if (status !== "OK") {
+      sawUnplayable = true;
+      continue;
+    }
+    if (!tracks.length) {
+      sawOkNoTracks = true;
+      continue;
+    }
+
+    // Prefer a human track, then English, then whatever exists.
+    const track =
+      tracks.find((t) => t.kind !== "asr" && t.languageCode.startsWith("en")) ??
+      tracks.find((t) => t.languageCode.startsWith("en")) ??
+      tracks.find((t) => t.kind !== "asr") ??
+      tracks[0];
+
+    // The caption URL comes from the upstream response — don't treat it as
+    // trusted. Pin it to YouTube over https and refuse redirects (SSRF).
+    let capUrl: URL;
+    try {
+      capUrl = new URL(`${track.baseUrl}&fmt=json3`);
+    } catch {
+      continue;
+    }
+    const capHost = capUrl.hostname;
+    if (capUrl.protocol !== "https:" || !(capHost === "youtube.com" || capHost.endsWith(".youtube.com"))) {
+      continue;
+    }
+    const capRes = await fetch(capUrl, { redirect: "error" }).catch(() => null);
+    if (!capRes?.ok) continue;
+
+    const transcript = parseCaptionBody(await capRes.text()).replace(/\s+/g, " ").trim();
+    if (!transcript) continue;
+
+    return {
+      title: data?.videoDetails?.title ?? "Untitled video",
+      transcript: transcript.slice(0, 16000),
     };
-  } | null;
-  const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
-  if (!tracks.length) {
-    return { error: "That video has no captions — the importer needs them to read the recipe." };
   }
-  // Prefer a human track, then English, then whatever exists.
-  const track =
-    tracks.find((t) => t.kind !== "asr" && t.languageCode.startsWith("en")) ??
-    tracks.find((t) => t.languageCode.startsWith("en")) ??
-    tracks.find((t) => t.kind !== "asr") ??
-    tracks[0];
 
-  // The caption URL comes from the upstream response — don't treat it as
-  // trusted. Pin it to YouTube over https and refuse redirects, so a crafted
-  // or compromised response can't steer the server anywhere else (SSRF).
-  let capUrl: URL;
-  try {
-    capUrl = new URL(`${track.baseUrl}&fmt=json3`);
-  } catch {
-    return { error: "YouTube returned an unusable caption URL." };
-  }
-  const capHost = capUrl.hostname;
-  if (capUrl.protocol !== "https:" || !(capHost === "youtube.com" || capHost.endsWith(".youtube.com"))) {
-    return { error: "YouTube returned an unexpected caption source." };
-  }
-  const capRes = await fetch(capUrl, { redirect: "error" }).catch(() => null);
-  if (!capRes?.ok) return { error: "Couldn't download the video's captions." };
-  const cap = (await capRes.json().catch(() => null)) as {
-    events?: { segs?: { utf8?: string }[] }[];
-  } | null;
-  const transcript = (cap?.events ?? [])
-    .flatMap((e) => e.segs ?? [])
-    .map((s) => s.utf8 ?? "")
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!transcript) return { error: "The captions came back empty." };
-
-  return { title: data?.videoDetails?.title ?? "Untitled video", transcript: transcript.slice(0, 16000) };
+  if (sawOkNoTracks) return { error: "That video has no captions — the importer needs them to read the recipe." };
+  if (sawUnplayable) return { error: "YouTube wouldn't serve that video to the importer — check the link, or try again in a minute." };
+  return { error: "Couldn't fetch captions from YouTube right now — try again, or paste the recipe as a note instead." };
 }
 
 export type ExtractedRecipe = {
@@ -94,11 +142,82 @@ export type ExtractedRecipe = {
   tags?: string[];
 };
 
+const JSON_CONTRACT = `Respond with strict JSON only (no markdown fence, no commentary):
+{"title": string, "description": string (1-2 sentences), "servings": string or null, "ingredients": [{"name": string, "qty": string or null}], "steps": [string, ...], "tags": [string, ...]}
+Rules: steps are imperative and self-contained; max 60 ingredients, 40 steps, 10 tags.`;
+
+function parseRecipeJson(raw: string): ExtractedRecipe | { error: string } {
+  const jsonText = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+  let candidate: unknown;
+  try {
+    candidate = JSON.parse(jsonText);
+  } catch {
+    return { error: "The model returned unusable output — try again." };
+  }
+  if (candidate && typeof candidate === "object" && "error" in candidate) {
+    return { error: "That doesn't look like a recipe." };
+  }
+  const Shape = z.object({
+    title: z.coerce.string().trim().min(1).max(120),
+    description: z.coerce.string().trim().max(2000).optional().nullable(),
+    servings: z.coerce.string().trim().max(40).optional().nullable(),
+    ingredients: z
+      .array(z.object({ name: z.coerce.string().trim().min(1).max(80), qty: z.coerce.string().trim().max(40).optional().nullable() }))
+      .max(60)
+      .catch([]),
+    steps: z.array(z.coerce.string().trim().min(1).max(1000)).min(1).max(40),
+    tags: z.array(z.coerce.string().trim().min(1).max(30)).max(10).catch([]),
+  });
+  const checked = Shape.safeParse(candidate);
+  if (!checked.success) return { error: "Couldn't produce a usable recipe." };
+  const r = checked.data;
+  return {
+    title: r.title,
+    description: r.description || undefined,
+    servings: r.servings || undefined,
+    ingredients: r.ingredients.map((i) => ({ name: i.name, qty: i.qty || undefined })),
+    steps: r.steps,
+    tags: r.tags,
+  };
+}
+
+/**
+ * Generate a recipe for a planned dish from the model's own knowledge —
+ * for when the cook doesn't know the dish and the household has no saved
+ * recipe. Common home dishes are well-covered public knowledge.
+ */
+export async function generateRecipeForDish(
+  dish: string,
+  householdNotes?: string
+): Promise<ExtractedRecipe | { error: string }> {
+  const prompt = `Write a practical home-style recipe for "${dish}" as cooked in an Indian household kitchen. Serves 4 unless the dish implies otherwise. Use commonly available ingredients and simple equipment (pressure cooker, kadai, tawa). Steps must be clear enough for a household cook who has never made this dish.${householdNotes ? ` Household constraints: ${householdNotes}.` : ""}
+
+${JSON_CONTRACT}
+If "${dish}" is not a food dish, return {"error": "not a dish"}.`;
+  try {
+    const res = await llm.chat.completions.create({
+      model: LLM_MODEL_FAST,
+      temperature: 0.4,
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 2000,
+    });
+    return parseRecipeJson(res.choices?.[0]?.message?.content ?? "");
+  } catch (err) {
+    console.error("[recipes-generate] failed", err);
+    return { error: "Couldn't generate the recipe — is the LLM key configured?" };
+  }
+}
+
 export async function extractRecipeFromTranscript(
   videoTitle: string,
-  transcript: string
+  transcript: string,
+  sourceKind: "video" | "note" = "video"
 ): Promise<ExtractedRecipe | { error: string }> {
-  const prompt = `A cooking video titled "${videoTitle}" has this transcript:
+  const sourceLine =
+    sourceKind === "video"
+      ? `A cooking video titled "${videoTitle}" has this transcript:`
+      : `A recipe note/document titled "${videoTitle}" contains this text:`;
+  const prompt = `${sourceLine}
 
 ${transcript}
 
@@ -113,39 +232,7 @@ Rules: steps are imperative and self-contained; keep quantities exactly as spoke
       messages: [{ role: "user", content: prompt }],
       max_tokens: 2000,
     });
-    const raw = res.choices?.[0]?.message?.content?.trim() ?? "";
-    const jsonText = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
-    let candidate: unknown;
-    try {
-      candidate = JSON.parse(jsonText);
-    } catch {
-      return { error: "The model returned unusable output — try that video again." };
-    }
-    if (candidate && typeof candidate === "object" && "error" in candidate) {
-      return { error: "That video doesn't look like a recipe." };
-    }
-    const Shape = z.object({
-      title: z.coerce.string().trim().min(1).max(120),
-      description: z.coerce.string().trim().max(2000).optional().nullable(),
-      servings: z.coerce.string().trim().max(40).optional().nullable(),
-      ingredients: z
-        .array(z.object({ name: z.coerce.string().trim().min(1).max(80), qty: z.coerce.string().trim().max(40).optional().nullable() }))
-        .max(60)
-        .catch([]),
-      steps: z.array(z.coerce.string().trim().min(1).max(1000)).min(1).max(40),
-      tags: z.array(z.coerce.string().trim().min(1).max(30)).max(10).catch([]),
-    });
-    const checked = Shape.safeParse(candidate);
-    if (!checked.success) return { error: "Couldn't find a usable recipe in that video." };
-    const r = checked.data;
-    return {
-      title: r.title,
-      description: r.description || undefined,
-      servings: r.servings || undefined,
-      ingredients: r.ingredients.map((i) => ({ name: i.name, qty: i.qty || undefined })),
-      steps: r.steps,
-      tags: r.tags,
-    };
+    return parseRecipeJson(res.choices?.[0]?.message?.content ?? "");
   } catch (err) {
     console.error("[recipes-import] extraction failed", err);
     return { error: "Couldn't extract the recipe — is the LLM key configured?" };

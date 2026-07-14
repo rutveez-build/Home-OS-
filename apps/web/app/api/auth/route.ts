@@ -11,6 +11,8 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { SESSION_COOKIE, sealSession } from "@/lib/session";
 import { logAudit } from "@/lib/audit";
+import { masterTestAccount } from "@/lib/admin";
+import { emailDomainAcceptsMail } from "@/lib/email-verify";
 
 export const runtime = "nodejs";
 
@@ -42,10 +44,21 @@ export async function POST(req: NextRequest) {
   }
   const body = parsed.data;
 
+  const master = masterTestAccount();
+
   if (body.mode === "signup") {
     const existing = await db.query.users.findFirst({ where: eq(users.email, body.email) });
     if (existing) {
       return NextResponse.json({ error: "That email already has an account — log in instead." }, { status: 409 });
+    }
+    // Email verification: the domain must be able to receive mail (MX/A
+    // lookup). Blocks typos and junk domains; the master test account is
+    // exempt so the login loop stays testable.
+    if (body.email !== master?.email && !(await emailDomainAcceptsMail(body.email))) {
+      return NextResponse.json(
+        { error: "That email's domain can't receive mail — double-check the address." },
+        { status: 400 }
+      );
     }
     const passwordHash = await bcrypt.hash(body.password, 10);
     let user;
@@ -70,6 +83,23 @@ export async function POST(req: NextRequest) {
     }
     await logAudit({ actorUserId: user.id, actor: "user", action: "account.created", channel: "web" });
     return withSession(user.id, { ok: true, name: user.name });
+  }
+
+  // Master test account (env-gated, never hardcoded): when MASTER_TEST_EMAIL
+  // + MASTER_TEST_PASSWORD are configured, that email always logs in with
+  // that password — regardless of stored state, auto-created on first use.
+  // Exists so the operator can re-verify the login loop repeatedly.
+  if (master && body.email === master.email && body.password === master.password) {
+    let user = await db.query.users.findFirst({ where: eq(users.email, master.email) });
+    if (!user) {
+      [user] = await db
+        .insert(users)
+        .values({ email: master.email, name: "Master Tester", language: "en" })
+        .returning();
+    }
+    await db.update(users).set({ lastSeenAt: new Date() }).where(eq(users.id, user.id));
+    await logAudit({ actorUserId: user.id, actor: "user", action: "account.master_login", channel: "web" });
+    return withSession(user.id, { ok: true, name: user.name, language: user.language });
   }
 
   // login

@@ -4,7 +4,7 @@
 // Planner" and "Meal Plan: Review & Approve" mocks. Approval is a full-width
 // banner card, deliberately the loudest element on the screen.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardBanner, Chip, Icon, PrimaryButton, SecondaryButton, ScreenHero } from "./kit";
 import { DAY_NAMES, MEAL_LABEL, MEAL_ORDER, type Plan, type PlanEntry } from "./types";
 
@@ -22,6 +22,7 @@ export function PlanScreen({
   onCook,
   onShopping,
   onRecipe,
+  onAddRecipe,
 }: {
   plan: NonNullable<Plan>;
   busy: boolean;
@@ -30,9 +31,20 @@ export function PlanScreen({
   onCook: () => void;
   onShopping: () => void;
   onRecipe: (dish: string) => void;
+  onAddRecipe: () => void;
 }) {
   const [editing, setEditing] = useState<{ day: number; meal: PlanEntry["meal"] } | null>(null);
   const [draft, setDraft] = useState("");
+  const [recipeOptions, setRecipeOptions] = useState<string[] | null>(null);
+
+  // Saved recipe titles feed the no-typing dropdown in the Change sheet.
+  useEffect(() => {
+    if (!editing || recipeOptions !== null) return;
+    fetch("/api/app/recipes")
+      .then((r) => r.json())
+      .then((d) => setRecipeOptions(((d.recipes ?? []) as { title: string }[]).map((r) => r.title)))
+      .catch(() => setRecipeOptions([]));
+  }, [editing, recipeOptions]);
   const [editMode, setEditMode] = useState(false);
   const canChange = plan.status === "draft" || editMode;
 
@@ -150,12 +162,40 @@ export function PlanScreen({
             <p className="text-[15px] font-semibold">
               Change {DAY_NAMES[editing.day]}&apos;s {MEAL_LABEL[editing.meal].toLowerCase()}
             </p>
+            <label className="mt-3 block text-[12px] font-semibold text-stream-mute">
+              Pick from your saved recipes
+            </label>
+            <select
+              value={recipeOptions?.includes(draft) ? draft : ""}
+              onChange={(e) => e.target.value && setDraft(e.target.value)}
+              className="mt-1 block w-full rounded-xl border border-stream-line bg-stream-bg px-3 py-3 text-[15px] text-stream-ink outline-none focus:border-stream-primary"
+            >
+              <option value="">
+                {recipeOptions === null ? "Loading recipes…" : recipeOptions.length ? "Choose a dish…" : "No saved recipes yet"}
+              </option>
+              {(recipeOptions ?? []).map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <label className="mt-3 block text-[12px] font-semibold text-stream-mute">
+              …or type a dish
+            </label>
             <input
-              autoFocus
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              className="mt-3 block w-full rounded-xl border border-stream-line bg-stream-bg px-4 py-3 text-[15px] text-stream-ink outline-none focus:border-stream-primary"
+              className="mt-1 block w-full rounded-xl border border-stream-line bg-stream-bg px-4 py-3 text-[15px] text-stream-ink outline-none focus:border-stream-primary"
             />
+            <button
+              onClick={() => {
+                setEditing(null);
+                onAddRecipe();
+              }}
+              className="mt-2 flex items-center gap-1.5 text-[13px] font-semibold text-stream-primary"
+            >
+              <Icon name="add_circle" className="text-[16px]" /> Don&apos;t like anything? Add a recipe
+            </button>
             <div className="mt-4 flex gap-2">
               <SecondaryButton className="flex-1" onClick={() => setEditing(null)}>
                 Cancel
